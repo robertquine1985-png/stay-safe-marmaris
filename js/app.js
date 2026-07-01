@@ -190,6 +190,8 @@ function populateBarDropdown() {
   const sel = document.getElementById('bar-select');
   sel.innerHTML = '<option value="">-- Select a Bar / Restaurant --</option>';
   const all = getAllBars();
+  // Sort A-Z by name
+  all.sort((a, b) => a.name.localeCompare(b.name));
   all.forEach(bar => {
     const opt = document.createElement('option');
     opt.value = bar.id;
