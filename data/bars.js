@@ -444,12 +444,20 @@ const BARS_DATA = [
 // Default base prices for new bars
 const DEFAULT_PRICES = {
   spirits: [
-    { name: "Vodka Shot", price: 120 },
+    { name: "Vodka Shot (Local)", price: 100 },
+    { name: "Vodka Shot (Import)", price: 160 },
     { name: "Tequila Shot", price: 120 },
-    { name: "Rum Shot", price: 120 },
-    { name: "Whisky Shot", price: 150 },
-    { name: "Gin Shot", price: 130 },
-    { name: "Raki", price: 130 }
+    { name: "Rum Shot (Local)", price: 100 },
+    { name: "Rum Shot (Import)", price: 160 },
+    { name: "Whisky (Local)", price: 120 },
+    { name: "Whisky (Import - JD)", price: 200 },
+    { name: "Gin (Local)", price: 110 },
+    { name: "Gin (Import - Gordons)", price: 170 },
+    { name: "Raki", price: 130 },
+    { name: "Jagermeister", price: 140 },
+    { name: "Sambuca", price: 130 },
+    { name: "Import Brandy", price: 180 },
+    { name: "Baileys", price: 160 }
   ],
   cocktails: [
     { name: "Mojito", price: 280 },
@@ -458,14 +466,19 @@ const DEFAULT_PRICES = {
     { name: "Long Island Iced Tea", price: 350 },
     { name: "Cosmopolitan", price: 280 },
     { name: "Aperol Spritz", price: 320 },
+    { name: "Espresso Martini", price: 320 },
     { name: "Daiquiri", price: 270 },
-    { name: "Blue Lagoon", price: 260 }
+    { name: "Blue Lagoon", price: 260 },
+    { name: "Tequila Sunrise", price: 260 },
+    { name: "Margarita", price: 290 }
   ],
   beers: [
     { name: "Efes (Draught)", price: 180 },
     { name: "Efes (Bottle)", price: 150 },
-    { name: "Heineken", price: 180 },
-    { name: "Corona", price: 200 }
+    { name: "Heineken (Import)", price: 180 },
+    { name: "Corona (Import)", price: 200 },
+    { name: "Tuborg", price: 150 },
+    { name: "Carlsberg (Import)", price: 180 }
   ],
   mixers: [
     { name: "Coca Cola", price: 60 },
@@ -474,6 +487,7 @@ const DEFAULT_PRICES = {
     { name: "Red Bull", price: 120 },
     { name: "Orange Juice", price: 80 },
     { name: "Cranberry Juice", price: 80 },
+    { name: "Soda Water", price: 40 },
     { name: "Pineapple Juice", price: 80 }
   ],
   softDrinks: [
@@ -481,7 +495,9 @@ const DEFAULT_PRICES = {
     { name: "Coca Cola", price: 80 },
     { name: "Fanta", price: 80 },
     { name: "Sprite", price: 80 },
-    { name: "Ayran", price: 60 }
+    { name: "Ayran", price: 60 },
+    { name: "Fresh Orange Juice", price: 100 },
+    { name: "Turkish Tea", price: 30 }
   ]
 };
 

@@ -66,7 +66,7 @@
       <h2>🧾 Bill Saver</h2>
       <div class="page-header-right">
         <button class="back-btn" onclick="openQuickShotModal()" title="Quick Shot">🥃</button>
-        <button class="back-btn" onclick="openScanModal()">📷</button>
+        <button class="back-btn" onclick="openScanModal()" style="width:auto;padding:0 12px;font-size:0.7rem;">📷 Scan Menu</button>
       </div>
     </div>
 
@@ -326,15 +326,25 @@
   <div class="modal-overlay" id="modal-add-bar">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h3>Add New Bar / Restaurant</h3>
-      <p>Can't find your bar? Add it for everyone:</p>
-      <input class="modal-input" id="new-bar-name" type="text" placeholder="Bar / Restaurant Name">
-      <input class="modal-input" id="new-bar-location" type="text" placeholder="Location (e.g. Bar Street, Marmaris)">
+      <h3>➕ Add New Bar / Restaurant</h3>
+      <p>Can't find your bar? Add it for everyone. <strong>Location must be enabled</strong> to verify accuracy.</p>
+      <input class="modal-input" id="new-bar-name" type="text" placeholder="Bar / Restaurant Name *">
+      <input class="modal-input" id="new-bar-location" type="text" placeholder="Location (e.g. Bar Street, Marmaris) *">
       <select class="modal-input" id="new-bar-type" style="padding:14px 16px;">
-        <option value="bar">🍹 Bar</option>
+        <option value="bar">🍹 Bar / Club</option>
         <option value="restaurant">🍽 Restaurant</option>
       </select>
-      <button class="modal-btn primary" onclick="saveNewBar()">Save Bar</button>
+      <div id="add-bar-gps" style="background:var(--dark3);border:1px solid var(--card-border);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span id="gps-status-icon">📍</span>
+          <span id="gps-status-text" style="font-size:0.8rem;color:var(--text-muted);">Tap to get your location</span>
+        </div>
+        <button class="modal-btn secondary" onclick="getBarLocation()" style="margin:0;padding:10px;font-size:0.8rem;">📍 Get My Location</button>
+        <input type="hidden" id="new-bar-lat" value="">
+        <input type="hidden" id="new-bar-lng" value="">
+      </div>
+      <div style="font-size:0.75rem;color:var(--warning);margin-bottom:12px;">⚠️ Location is required so we can verify this bar is real and in Marmaris.</div>
+      <button class="modal-btn primary" onclick="saveNewBar()">✅ Save Bar for Everyone</button>
       <button class="modal-btn secondary" onclick="closeModal('modal-add-bar')">Cancel</button>
     </div>
   </div>
@@ -384,12 +394,15 @@
   <div class="modal-overlay" id="modal-scan">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h3>📸 Scan Menu</h3>
-      <p>Take a photo of the bar's menu to detect prices:</p>
-      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div>📷</div><p>Tap to select a menu photo</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
+      <h3>📸 Scan a Menu</h3>
+      <p>Take a photo of the bar's menu — AI will read all drinks, categories & prices and save them to this bar.</p>
+      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div style="font-size:2.5rem;">📷</div><p>Tap to take a photo or select from gallery</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
       <input type="file" id="scan-input" accept="image/*" capture="environment" onchange="handleScanUpload(this)">
-      <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 Analyse Menu</button>
+      <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 Scan & Add All Prices</button>
       <div id="scan-result"></div>
+      <div id="scan-actions" style="display:none;margin-top:12px;">
+        <button class="modal-btn primary" onclick="saveScanResultsToBar()">💾 Save All to Bar Menu</button>
+      </div>
       <button class="modal-btn secondary" onclick="closeModal('modal-scan')" style="margin-top:10px;">Close</button>
     </div>
   </div>

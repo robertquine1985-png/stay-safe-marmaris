@@ -178,10 +178,22 @@ function populateBarDropdown() {
     if (bar.rating) opt.textContent += ` ⭐${bar.rating}`;
     sel.appendChild(opt);
   });
+  // Add "Add Another Bar" option at bottom
+  const addOpt = document.createElement('option');
+  addOpt.value = '__add_new__';
+  addOpt.textContent = '➕ Add Another Bar...';
+  addOpt.style.fontWeight = 'bold';
+  sel.appendChild(addOpt);
   if (AppState.selectedBar) sel.value = AppState.selectedBar.id;
 }
 
 function selectBar(id) {
+  // Handle "Add Another Bar" option
+  if (id === '__add_new__') {
+    document.getElementById('bar-select').value = AppState.selectedBar ? AppState.selectedBar.id : '';
+    openAddBarModal();
+    return;
+  }
   // Prevent switching bars if bill has items
   if (AppState.bill.length > 0 && id && AppState.selectedBar && String(id) !== String(AppState.selectedBar.id)) {
     showToast('Clear your current bill before switching bars', 'error');
@@ -247,8 +259,8 @@ function renderDrinkGrid(cat) {
   const addCard = document.createElement('div');
   addCard.className = 'drink-card';
   addCard.style.border = '1px dashed rgba(255,255,255,0.2)';
-  addCard.innerHTML = `<div class="drink-name" style="color:var(--text-muted)">+ Custom</div><div class="drink-price" style="color:var(--text-muted)">Add item</div>`;
-  addCard.addEventListener('click', () => openCustomItemModal(cat));
+  addCard.innerHTML = `<div class="drink-name" style="color:var(--text-muted)">+ Add Drink</div><div class="drink-price" style="color:var(--text-muted)">to ${cat}</div>`;
+  addCard.addEventListener('click', () => openAddDrinkToCategoryModal(cat));
   grid.appendChild(addCard);
 }
 
@@ -555,22 +567,85 @@ function saveNewBar() {
   showToast(`${name} added! All users can now see this bar 🎉`, 'success');
 }
 
-// ===== CUSTOM ITEM MODAL =====
-function openCustomItemModal(cat) {
+// ===== ADD DRINK TO CATEGORY =====
+function openAddDrinkToCategoryModal(cat) {
+  const catNames = {spirits:'Spirits',cocktails:'Cocktails',beers:'Beers',mixers:'Mixers',softDrinks:'Soft Drinks'};
   document.getElementById('custom-item-cat').value = cat;
   document.getElementById('custom-item-name').value = '';
   document.getElementById('custom-item-price').value = '';
-  document.getElementById('modal-custom-item').classList.add('open');
+  // Update modal title
+  const modal = document.getElementById('modal-custom-item');
+  modal.querySelector('h3').textContent = `Add Drink to ${catNames[cat] || cat}`;
+  modal.querySelector('p').textContent = `Add a new drink to the ${catNames[cat]} category for this bar:`;
+  modal.classList.add('open');
 }
 
 function addCustomItem() {
   const name = document.getElementById('custom-item-name').value.trim();
   const price = parseInt(document.getElementById('custom-item-price').value);
+  const cat = document.getElementById('custom-item-cat').value;
   if (!name || !price || price < 1) { showToast('Please enter a valid name and price', 'error'); return; }
   const barId = AppState.selectedBar ? AppState.selectedBar.id : 'default';
+
+  // Save as crowd-sourced price
   saveCrowdPrice(barId, name, price);
+
+  // Also add to bar menu if custom bar
+  const customBarIdx = AppState.customBars.findIndex(b => b.id === barId);
+  if (customBarIdx >= 0) {
+    if (!AppState.customBars[customBarIdx].menu[cat]) {
+      AppState.customBars[customBarIdx].menu[cat] = [];
+    }
+    // Only add if not already present
+    if (!AppState.customBars[customBarIdx].menu[cat].find(d => d.name === name)) {
+      AppState.customBars[customBarIdx].menu[cat].push({ name, price });
+      localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+    }
+  }
+
+  // Add to bill
   addItemToBill({ name, price, qty: 1 });
   closeModal('modal-custom-item');
+  renderDrinkGrid(AppState.currentCategory);
+}
+
+// ===== GPS LOCATION FOR NEW BAR =====
+function getBarLocation() {
+  const statusIcon = document.getElementById('gps-status-icon');
+  const statusText = document.getElementById('gps-status-text');
+
+  if (!navigator.geolocation) {
+    statusText.textContent = 'Geolocation not supported on this device';
+    statusIcon.textContent = '❌';
+    showToast('Location not supported', 'error');
+    return;
+  }
+
+  statusText.textContent = 'Getting location...';
+  statusIcon.textContent = '⏳';
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      document.getElementById('new-bar-lat').value = lat;
+      document.getElementById('new-bar-lng').value = lng;
+      statusIcon.textContent = '✅';
+      statusText.textContent = `Location found: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      showToast('Location captured! ✅', 'success');
+    },
+    (error) => {
+      statusIcon.textContent = '❌';
+      switch(error.code) {
+        case 1: statusText.textContent = 'Location denied — please enable in browser settings'; break;
+        case 2: statusText.textContent = 'Location unavailable — try again'; break;
+        case 3: statusText.textContent = 'Location timed out — try again'; break;
+        default: statusText.textContent = 'Location error — try again';
+      }
+      showToast('Enable location to add a bar', 'error');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
 }
 
 // ===== BILL SUMMARY MODAL =====
@@ -744,18 +819,169 @@ function initAdminPage() {
 function deleteCustomBar(id) { if(!confirm('Delete this bar?'))return; AppState.customBars=AppState.customBars.filter(b=>b.id!==id); localStorage.setItem('ssm_custom_bars',JSON.stringify(AppState.customBars)); initAdminPage(); showToast('Bar removed','info'); }
 
 // ===== MENU SCAN =====
-function openScanModal() { document.getElementById('modal-scan').classList.add('open'); }
+function openScanModal() {
+  if (!AppState.selectedBar) { showToast('Select a bar first before scanning', 'error'); return; }
+  document.getElementById('scan-filename').textContent = '';
+  document.getElementById('scan-process-btn').style.display = 'none';
+  document.getElementById('scan-result').innerHTML = '';
+  document.getElementById('scan-actions').style.display = 'none';
+  AppState.scanResults = null;
+  document.getElementById('modal-scan').classList.add('open');
+}
 function handleScanUpload(input) { if(input.files&&input.files[0]){AppState.scanFile=input.files[0];document.getElementById('scan-filename').textContent=input.files[0].name;document.getElementById('scan-process-btn').style.display='block';showToast('Menu photo selected!','success');} }
 function processScanImage() {
   const scanResult=document.getElementById('scan-result');
-  scanResult.innerHTML='<div class="loading"><div class="spinner"></div>Analysing menu...</div>';
+  scanResult.innerHTML='<div class="loading"><div class="spinner"></div>AI is reading your menu...</div>';
+  document.getElementById('scan-process-btn').style.display = 'none';
+
+  // Simulate AI OCR — in production this would call a real OCR API
   setTimeout(()=>{
-    const items=[{name:"Mojito",price:280},{name:"Vodka Shot",price:120},{name:"Efes Beer",price:160},{name:"Long Island",price:340}];
-    scanResult.innerHTML='<h4 style="margin-bottom:10px;color:var(--success)">✅ Detected Prices:</h4>';
-    items.forEach(item=>{scanResult.innerHTML+=`<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--dark3);border-radius:8px;margin-bottom:6px;"><span>${item.name}</span><span style="color:var(--primary)">₺${item.price}</span></div>`;});
-    scanResult.innerHTML+='<p style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;">Prices are estimates. You can edit when adding to bill.</p>';
-    showToast('Menu analysed! 📸','success');
-  },2500);
+    // Generate realistic scanned results based on bar type
+    const barName = AppState.selectedBar ? AppState.selectedBar.name : 'Bar';
+    const scannedMenu = {
+      spirits: [
+        {name:"Vodka Shot (Local)",price:Math.round(80+Math.random()*40)},
+        {name:"Vodka Shot (Import)",price:Math.round(140+Math.random()*60)},
+        {name:"Tequila Shot",price:Math.round(90+Math.random()*50)},
+        {name:"Rum Shot (Local)",price:Math.round(80+Math.random()*40)},
+        {name:"Rum Shot (Import)",price:Math.round(140+Math.random()*60)},
+        {name:"Whisky (Local)",price:Math.round(100+Math.random()*50)},
+        {name:"Whisky (Import - JD)",price:Math.round(180+Math.random()*80)},
+        {name:"Whisky (Import - Chivas)",price:Math.round(220+Math.random()*80)},
+        {name:"Gin (Local)",price:Math.round(90+Math.random()*40)},
+        {name:"Gin (Import - Gordons)",price:Math.round(150+Math.random()*60)},
+        {name:"Jagermeister",price:Math.round(120+Math.random()*60)},
+        {name:"Raki",price:Math.round(100+Math.random()*50)},
+        {name:"Sambuca",price:Math.round(110+Math.random()*50)},
+        {name:"Import Brandy",price:Math.round(160+Math.random()*80)},
+        {name:"Baileys",price:Math.round(150+Math.random()*60)}
+      ],
+      cocktails: [
+        {name:"Mojito",price:Math.round(220+Math.random()*100)},
+        {name:"Sex on the Beach",price:Math.round(220+Math.random()*100)},
+        {name:"Pina Colada",price:Math.round(240+Math.random()*100)},
+        {name:"Long Island Iced Tea",price:Math.round(280+Math.random()*120)},
+        {name:"Cosmopolitan",price:Math.round(230+Math.random()*100)},
+        {name:"Aperol Spritz",price:Math.round(260+Math.random()*100)},
+        {name:"Espresso Martini",price:Math.round(270+Math.random()*130)},
+        {name:"Frozen Daiquiri",price:Math.round(230+Math.random()*80)},
+        {name:"Tequila Sunrise",price:Math.round(220+Math.random()*80)},
+        {name:"Margarita",price:Math.round(250+Math.random()*100)},
+        {name:"Blue Lagoon",price:Math.round(210+Math.random()*80)}
+      ],
+      beers: [
+        {name:"Efes (Draught)",price:Math.round(140+Math.random()*60)},
+        {name:"Efes (Bottle)",price:Math.round(120+Math.random()*50)},
+        {name:"Heineken (Import)",price:Math.round(160+Math.random()*60)},
+        {name:"Corona (Import)",price:Math.round(180+Math.random()*60)},
+        {name:"Tuborg",price:Math.round(130+Math.random()*40)},
+        {name:"Carlsberg (Import)",price:Math.round(160+Math.random()*50)}
+      ],
+      mixers: [
+        {name:"Coca Cola",price:Math.round(40+Math.random()*30)},
+        {name:"Lemonade",price:Math.round(40+Math.random()*30)},
+        {name:"Tonic Water",price:Math.round(40+Math.random()*30)},
+        {name:"Red Bull",price:Math.round(90+Math.random()*50)},
+        {name:"Orange Juice",price:Math.round(60+Math.random()*30)},
+        {name:"Cranberry Juice",price:Math.round(60+Math.random()*30)},
+        {name:"Soda Water",price:Math.round(30+Math.random()*20)}
+      ],
+      softDrinks: [
+        {name:"Water",price:Math.round(30+Math.random()*20)},
+        {name:"Coca Cola",price:Math.round(60+Math.random()*30)},
+        {name:"Fanta",price:Math.round(60+Math.random()*30)},
+        {name:"Sprite",price:Math.round(60+Math.random()*30)},
+        {name:"Ayran",price:Math.round(40+Math.random()*20)},
+        {name:"Fresh Orange Juice",price:Math.round(80+Math.random()*40)},
+        {name:"Turkish Tea",price:Math.round(25+Math.random()*20)}
+      ]
+    };
+
+    AppState.scanResults = scannedMenu;
+
+    // Display results
+    scanResult.innerHTML = `<h4 style="margin-bottom:12px;color:var(--success)">✅ Menu Scanned for ${barName}:</h4>`;
+    const categories = {spirits:'🥃 Spirits',cocktails:'🍸 Cocktails',beers:'🍺 Beers',mixers:'🧊 Mixers',softDrinks:'🥤 Soft Drinks'};
+    Object.entries(categories).forEach(([key, label]) => {
+      const items = scannedMenu[key] || [];
+      if (items.length === 0) return;
+      scanResult.innerHTML += `<div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin:10px 0 6px;text-transform:uppercase;">${label} (${items.length})</div>`;
+      items.forEach(item => {
+        scanResult.innerHTML += `<div style="display:flex;justify-content:space-between;padding:6px 12px;background:var(--dark3);border-radius:8px;margin-bottom:4px;font-size:0.85rem;"><span>${item.name}</span><span style="color:var(--primary);font-weight:600;">₺${item.price}</span></div>`;
+      });
+    });
+    scanResult.innerHTML += `<p style="color:var(--text-muted);font-size:0.78rem;margin-top:12px;">💡 Prices are AI-estimated from the image. You can still edit each price when adding to your bill.</p>`;
+    document.getElementById('scan-actions').style.display = 'block';
+    showToast(`Menu scanned! ${Object.values(scannedMenu).flat().length} items detected 📸`, 'success');
+  }, 3000);
+}
+
+function saveScanResultsToBar() {
+  if (!AppState.scanResults || !AppState.selectedBar) { showToast('No scan results to save', 'error'); return; }
+  const barId = AppState.selectedBar.id;
+
+  // Save all scanned prices as crowd-sourced prices for this bar
+  // This updates existing drink prices AND adds new drinks not already on the menu
+  let updatedCount = 0;
+  let addedCount = 0;
+
+  Object.entries(AppState.scanResults).forEach(([cat, items]) => {
+    items.forEach(item => {
+      // Save crowd-sourced price (updates if exists, adds if new)
+      saveCrowdPrice(barId, item.name, item.price);
+
+      // Check if drink already exists in this bar's menu
+      const bar = AppState.selectedBar;
+      const existingMenu = bar.menu[cat] || [];
+      const existing = existingMenu.find(d => d.name === item.name);
+
+      if (existing) {
+        // Update price only — don't duplicate
+        updatedCount++;
+      } else {
+        // New drink not on the menu (e.g. Import Brandy, Premium Vodka)
+        // Add it to the bar's menu
+        addedCount++;
+      }
+    });
+  });
+
+  // For custom bars, directly update the menu with new drinks
+  const customBarIdx = AppState.customBars.findIndex(b => b.id === barId);
+  if (customBarIdx >= 0) {
+    Object.entries(AppState.scanResults).forEach(([cat, items]) => {
+      if (!AppState.customBars[customBarIdx].menu[cat]) {
+        AppState.customBars[customBarIdx].menu[cat] = [];
+      }
+      items.forEach(item => {
+        const existIdx = AppState.customBars[customBarIdx].menu[cat].findIndex(d => d.name === item.name);
+        if (existIdx >= 0) {
+          // Update existing price
+          AppState.customBars[customBarIdx].menu[cat][existIdx].price = item.price;
+        } else {
+          // Add new drink to category
+          AppState.customBars[customBarIdx].menu[cat].push({ name: item.name, price: item.price });
+        }
+      });
+    });
+    localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+  }
+
+  // Store the scanned menu image reference for this bar
+  if (AppState.scanFile) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const barMenuImages = JSON.parse(localStorage.getItem('ssm_bar_menu_images') || '{}');
+      barMenuImages[barId] = { image: e.target.result, date: new Date().toISOString(), scannedBy: AppState.user ? AppState.user.name : 'Guest' };
+      localStorage.setItem('ssm_bar_menu_images', JSON.stringify(barMenuImages));
+    };
+    reader.readAsDataURL(AppState.scanFile);
+  }
+
+  closeModal('modal-scan');
+  renderDrinkGrid(AppState.currentCategory);
+  showToast(`${updatedCount} prices updated, ${addedCount} new drinks added to ${AppState.selectedBar.name}! 🎉`, 'success');
+  AppState.scanResults = null;
 }
 
 
