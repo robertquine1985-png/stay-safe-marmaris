@@ -42,21 +42,21 @@
         <span class="btn-title">BILL SAVER</span>
         <span class="btn-sub">Track your drinks & avoid scams</span>
         <span class="btn-arrow">→</span>
-        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('bill')">ℹ️</span>
+        <span class="btn-help" onclick="event.stopPropagation(); event.preventDefault(); openHelpModal('bill'); return false;">?</span>
       </button>
       <button class="menu-btn menu-btn-top10" id="btn-top10">
         <span class="btn-icon">🏆</span>
         <span class="btn-title">TOP 10 BARS</span>
         <span class="btn-sub">Best rated places by tourists</span>
         <span class="btn-arrow">→</span>
-        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('top10')">ℹ️</span>
+        <span class="btn-help" onclick="event.stopPropagation(); event.preventDefault(); openHelpModal('top10'); return false;">?</span>
       </button>
       <button class="menu-btn menu-btn-currency" id="btn-currency">
         <span class="btn-icon">💱</span>
         <span class="btn-title">CURRENCY CONVERTER</span>
         <span class="btn-sub">GBP & EUR to Turkish Lira</span>
         <span class="btn-arrow">→</span>
-        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('currency')">ℹ️</span>
+        <span class="btn-help" onclick="event.stopPropagation(); event.preventDefault(); openHelpModal('currency'); return false;">?</span>
       </button>
     </div>
   </div>
@@ -230,7 +230,7 @@
       <div class="profile-menu-item" onclick="showPage('bill'); initBillPage();"><span class="profile-menu-icon">🧾</span><span class="profile-menu-text">Bill Saver</span><span class="profile-menu-arrow">→</span></div>
       <div class="profile-menu-item" onclick="showPage('history'); initBillHistoryPage();"><span class="profile-menu-icon">📋</span><span class="profile-menu-text">Bill History</span><span class="profile-menu-arrow">→</span></div>
       <div class="profile-menu-item" onclick="showPage('top10'); initTop10Page();"><span class="profile-menu-icon">🏆</span><span class="profile-menu-text">Top 10 Bars</span><span class="profile-menu-arrow">→</span></div>
-      <div class="profile-menu-item" onclick="showPage('admin'); initAdminPage();"><span class="profile-menu-icon">⚙️</span><span class="profile-menu-text">Admin Panel</span><span class="profile-menu-arrow">→</span></div>
+      <div class="profile-menu-item admin-only-item" onclick="showPage('admin'); initAdminPage();"><span class="profile-menu-icon">⚙️</span><span class="profile-menu-text">Admin Panel 🔐</span><span class="profile-menu-arrow">→</span></div>
     </div>
   </div>
 
@@ -247,14 +247,15 @@
   <div id="page-admin" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('profile'); initProfilePage();">←</button>
-      <h2>⚙️ Admin Panel</h2>
+      <h2>⚙️ Admin Panel 🔐</h2>
     </div>
     <div class="admin-grid">
       <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-bars" style="color:var(--primary)">0</div><div class="admin-stat-lbl">Total Bars</div></div>
       <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-reviews" style="color:var(--gold)">0</div><div class="admin-stat-lbl">Reviews</div></div>
       <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-users" style="color:var(--success)">0</div><div class="admin-stat-lbl">Users</div></div>
-      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-custom-bars" style="color:var(--secondary)">0</div><div class="admin-stat-lbl">Custom Bars</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-custom-bars" style="color:var(--secondary)">0</div><div id="admin-pending-label" class="admin-stat-lbl">Pending</div></div>
     </div>
+    <div class="admin-section"><h3>⏳ Pending Approval</h3><div id="admin-pending-list"></div></div>
     <div class="admin-section"><h3>All Venues</h3><div id="admin-bar-list"></div></div>
   </div>
 

@@ -12,9 +12,12 @@ const AppState = {
   customBars: JSON.parse(localStorage.getItem('ssm_custom_bars') || '[]'),
   crowdPrices: JSON.parse(localStorage.getItem('ssm_crowd_prices') || '{}'),
   billHistory: JSON.parse(localStorage.getItem('ssm_bill_history') || '[]'),
+  pendingBars: JSON.parse(localStorage.getItem('ssm_pending_bars') || '[]'),
   top10Filter: 'all',
   top10Limit: 10,
-  scanFile: null
+  scanFile: null,
+  isAdmin: false,
+  adminEmail: 'robertmogsa85@gmail.com'
 };
 
 // ===== NAVIGATION =====
@@ -79,7 +82,10 @@ function transitionToMenu() {
 // ===== AUTH =====
 function initAuth() {
   const savedUser = localStorage.getItem('ssm_current_user');
-  if (savedUser) AppState.user = JSON.parse(savedUser);
+  if (savedUser) {
+    AppState.user = JSON.parse(savedUser);
+    AppState.isAdmin = AppState.user.isAdmin === true || AppState.user.email === AppState.adminEmail;
+  }
   updateAuthUI();
 }
 
@@ -98,10 +104,23 @@ function handleLogin(e) {
   const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
   if (!email || !pass) { showToast('Please fill all fields', 'error'); return; }
+
+  // Check admin login
+  if (email === AppState.adminEmail && pass === 'Safety99!!') {
+    AppState.user = { id: 'admin_1', name: 'Admin', email: email, isAdmin: true };
+    AppState.isAdmin = true;
+    localStorage.setItem('ssm_current_user', JSON.stringify(AppState.user));
+    updateAuthUI();
+    showPage('menu');
+    showToast('Welcome Admin! 🔐', 'success');
+    return;
+  }
+
   const users = JSON.parse(localStorage.getItem('ssm_users') || '[]');
   const user = users.find(u => u.email === email && u.password === btoa(pass));
   if (!user) { showToast('Invalid email or password', 'error'); return; }
-  AppState.user = { id: user.id, name: user.name, email: user.email };
+  AppState.user = { id: user.id, name: user.name, email: user.email, isAdmin: false };
+  AppState.isAdmin = false;
   localStorage.setItem('ssm_current_user', JSON.stringify(AppState.user));
   updateAuthUI();
   showPage('menu');
@@ -174,7 +193,7 @@ function populateBarDropdown() {
   all.forEach(bar => {
     const opt = document.createElement('option');
     opt.value = bar.id;
-    opt.textContent = `${bar.name} — ${bar.location}`;
+    opt.textContent = `${bar.name}`;
     if (bar.rating) opt.textContent += ` ⭐${bar.rating}`;
     sel.appendChild(opt);
   });
@@ -551,6 +570,10 @@ function openAddBarModal() {
   document.getElementById('new-bar-name').value = '';
   document.getElementById('new-bar-location').value = '';
   document.getElementById('new-bar-type').value = 'bar';
+  document.getElementById('new-bar-lat').value = '';
+  document.getElementById('new-bar-lng').value = '';
+  document.getElementById('gps-status-icon').textContent = '📍';
+  document.getElementById('gps-status-text').textContent = 'Tap to get your location';
   document.getElementById('modal-add-bar').classList.add('open');
 }
 
@@ -558,7 +581,12 @@ function saveNewBar() {
   const name = document.getElementById('new-bar-name').value.trim();
   const location = document.getElementById('new-bar-location').value.trim();
   const type = document.getElementById('new-bar-type').value;
+  const lat = document.getElementById('new-bar-lat').value;
+  const lng = document.getElementById('new-bar-lng').value;
+
   if (!name || !location) { showToast('Please enter bar name and location', 'error'); return; }
+  if (!lat || !lng) { showToast('📍 Location is required — tap "Get My Location" first', 'error'); return; }
+
   const newBar = {
     id: 'custom_' + Date.now(),
     name, location, type,
@@ -567,17 +595,31 @@ function saveNewBar() {
     priceRange: '££',
     description: `Added by ${AppState.user ? AppState.user.name : 'Guest'}`,
     addedBy: AppState.user ? AppState.user.name : 'Guest',
-    menu: JSON.parse(JSON.stringify(DEFAULT_PRICES))
+    lat: parseFloat(lat),
+    lng: parseFloat(lng),
+    menu: JSON.parse(JSON.stringify(DEFAULT_PRICES)),
+    approved: AppState.isAdmin ? true : false,
+    submittedDate: new Date().toISOString()
   };
-  AppState.customBars.push(newBar);
-  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+
+  if (AppState.isAdmin) {
+    AppState.customBars.push(newBar);
+    localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+    showToast(`${name} added & approved! ✅`, 'success');
+  } else {
+    AppState.pendingBars.push(newBar);
+    localStorage.setItem('ssm_pending_bars', JSON.stringify(AppState.pendingBars));
+    AppState.customBars.push(newBar);
+    localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+    showToast(`${name} added temporarily for today! 🕐 Awaiting admin approval.`, 'info');
+  }
+
   populateBarDropdown();
   AppState.selectedBar = newBar;
   document.getElementById('bar-select').value = newBar.id;
   renderDrinkGrid(AppState.currentCategory);
   updateMapHeader();
   closeModal('modal-add-bar');
-  showToast(`${name} added! All users can now see this bar 🎉`, 'success');
 }
 
 // ===== ADD DRINK TO CATEGORY =====
@@ -808,28 +850,133 @@ function initProfilePage() {
   document.getElementById('stat-reviews').textContent = userReviews.length;
   document.getElementById('stat-saved').textContent = Object.keys(AppState.votes).length;
   document.getElementById('stat-bills').textContent = AppState.billHistory.length;
+  // Show/hide admin link
+  const adminItem = document.querySelector('.admin-only-item');
+  if (adminItem) adminItem.style.display = AppState.isAdmin ? 'flex' : 'none';
 }
 
 // ===== ADMIN PAGE =====
 function initAdminPage() {
+  if (!AppState.isAdmin) {
+    showToast('Admin access only 🔐', 'error');
+    showPage('menu');
+    return;
+  }
   const allBars = getAllBars();
   const reviews = JSON.parse(localStorage.getItem('ssm_reviews') || '[]');
   const users = JSON.parse(localStorage.getItem('ssm_users') || '[]');
+  const pending = AppState.pendingBars;
   document.getElementById('admin-total-bars').textContent = allBars.length;
   document.getElementById('admin-total-reviews').textContent = reviews.length;
   document.getElementById('admin-total-users').textContent = users.length;
-  document.getElementById('admin-custom-bars').textContent = AppState.customBars.length;
+  document.getElementById('admin-custom-bars').textContent = pending.length;
+  document.getElementById('admin-pending-label').textContent = 'Pending';
+
+  // Render pending bars
+  const pendingList = document.getElementById('admin-pending-list');
+  pendingList.innerHTML = '';
+  if (pending.length === 0) {
+    pendingList.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;">No pending bars to review</div>';
+  } else {
+    pending.forEach(bar => {
+      const row = document.createElement('div');
+      row.className = 'admin-bar-row';
+      row.innerHTML = `<div class="admin-bar-info"><div class="admin-bar-name">${bar.name} <span class="badge badge-hot">PENDING</span></div><div class="admin-bar-meta">${bar.location} • ${bar.type} • by ${bar.addedBy || 'Guest'} • ${new Date(bar.submittedDate).toLocaleDateString()}</div></div>
+        <div class="admin-bar-actions">
+          <button class="admin-btn edit" onclick="adminApproveBar('${bar.id}')">✅ Approve</button>
+          <button class="admin-btn del" onclick="adminRejectBar('${bar.id}')">❌ Reject</button>
+        </div>`;
+      pendingList.appendChild(row);
+    });
+  }
+
+  // Render all bars
   const list = document.getElementById('admin-bar-list');
   list.innerHTML = '';
   allBars.forEach(bar => {
+    const isPending = !bar.approved && bar.approved !== undefined;
     const row = document.createElement('div');
     row.className = 'admin-bar-row';
-    row.innerHTML = `<div class="admin-bar-info"><div class="admin-bar-name">${bar.name}</div><div class="admin-bar-meta">${bar.location} • ${bar.type}${bar.addedBy ? ' • Added by '+bar.addedBy : ''}</div></div>
-      <div class="admin-bar-actions"><button class="admin-btn edit" onclick="showToast('Edit: ${bar.name}','info')">Edit</button>${String(bar.id).startsWith('custom_')?`<button class="admin-btn del" onclick="deleteCustomBar('${bar.id}')">Del</button>`:''}</div>`;
+    row.innerHTML = `<div class="admin-bar-info"><div class="admin-bar-name">${bar.name} ${isPending ? '<span class="badge badge-hot">PENDING</span>' : ''}</div><div class="admin-bar-meta">${bar.location} • ${bar.type}${bar.addedBy ? ' • by '+bar.addedBy : ''} • 👍${bar.thumbsUp} 👎${bar.thumbsDown}</div></div>
+      <div class="admin-bar-actions">
+        <button class="admin-btn edit" onclick="adminEditBar('${bar.id}')">Edit</button>
+        <button class="admin-btn del" onclick="adminResetVotes('${bar.id}')">Reset Votes</button>
+        ${String(bar.id).startsWith('custom_')?`<button class="admin-btn del" onclick="adminDeleteBar('${bar.id}')">Delete</button>`:''}</div>`;
     list.appendChild(row);
   });
 }
-function deleteCustomBar(id) { if(!confirm('Delete this bar?'))return; AppState.customBars=AppState.customBars.filter(b=>b.id!==id); localStorage.setItem('ssm_custom_bars',JSON.stringify(AppState.customBars)); initAdminPage(); showToast('Bar removed','info'); }
+
+function adminApproveBar(id) {
+  const idx = AppState.pendingBars.findIndex(b => b.id === id);
+  if (idx >= 0) {
+    AppState.pendingBars[idx].approved = true;
+    // Move from pending to approved custom bars
+    const bar = AppState.pendingBars.splice(idx, 1)[0];
+    localStorage.setItem('ssm_pending_bars', JSON.stringify(AppState.pendingBars));
+    // Update in customBars too
+    const customIdx = AppState.customBars.findIndex(b => b.id === id);
+    if (customIdx >= 0) AppState.customBars[customIdx].approved = true;
+    localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+    showToast(`${bar.name} approved! ✅ Now visible to all users.`, 'success');
+    initAdminPage();
+  }
+}
+
+function adminRejectBar(id) {
+  if (!confirm('Reject and remove this bar?')) return;
+  AppState.pendingBars = AppState.pendingBars.filter(b => b.id !== id);
+  localStorage.setItem('ssm_pending_bars', JSON.stringify(AppState.pendingBars));
+  AppState.customBars = AppState.customBars.filter(b => b.id !== id);
+  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+  showToast('Bar rejected & removed ❌', 'info');
+  initAdminPage();
+}
+
+function adminDeleteBar(id) {
+  if (!confirm('Permanently delete this bar?')) return;
+  AppState.customBars = AppState.customBars.filter(b => b.id !== id);
+  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+  AppState.pendingBars = AppState.pendingBars.filter(b => b.id !== id);
+  localStorage.setItem('ssm_pending_bars', JSON.stringify(AppState.pendingBars));
+  showToast('Bar deleted', 'info');
+  initAdminPage();
+}
+
+function adminResetVotes(id) {
+  if (!confirm('Reset all votes for this bar?')) return;
+  delete AppState.votes[id];
+  localStorage.setItem('ssm_votes', JSON.stringify(AppState.votes));
+  // Also reset match ratings
+  const barRatings = JSON.parse(localStorage.getItem('ssm_bar_match_ratings') || '{}');
+  delete barRatings[id];
+  localStorage.setItem('ssm_bar_match_ratings', JSON.stringify(barRatings));
+  showToast('Votes & ratings reset', 'info');
+  initAdminPage();
+}
+
+function adminEditBar(id) {
+  const allBars = getAllBars();
+  const bar = allBars.find(b => String(b.id) === String(id));
+  if (!bar) return;
+  const newName = prompt('Bar name:', bar.name);
+  if (!newName) return;
+  const newLocation = prompt('Location:', bar.location);
+  if (!newLocation) return;
+  const newType = prompt('Type (bar/restaurant):', bar.type);
+
+  // Update in customBars if it's custom
+  const customIdx = AppState.customBars.findIndex(b => String(b.id) === String(id));
+  if (customIdx >= 0) {
+    AppState.customBars[customIdx].name = newName;
+    AppState.customBars[customIdx].location = newLocation;
+    if (newType) AppState.customBars[customIdx].type = newType;
+    localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+    showToast(`${newName} updated ✅`, 'success');
+    initAdminPage();
+  } else {
+    showToast('Only custom bars can be edited from here', 'info');
+  }
+}
 
 // ===== MENU SCAN =====
 function openScanModal() {
@@ -1115,6 +1262,13 @@ function openBarReviewsModal() {
   // Get all bill history for this bar
   const allHistory = AppState.billHistory.filter(b => b.barId === barId || b.barName === bar.name);
 
+  // Only show bills from approved bars (or admin sees all)
+  const visibleHistory = AppState.isAdmin ? allHistory : allHistory.filter(b => {
+    // Check if the bar is approved
+    const barObj = getAllBars().find(x => x.id === b.barId);
+    return !barObj || barObj.approved !== false;
+  });
+
   // Get match ratings for this bar
   const barRatings = JSON.parse(localStorage.getItem('ssm_bar_match_ratings') || '{}');
   const ratings = barRatings[barId] || [];
@@ -1229,17 +1383,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('touchstart', () => { playSound('intro'); }, { once: true });
 
   // Navigation with sounds
-  document.getElementById('btn-bill').addEventListener('click', () => {
+  document.getElementById('btn-bill').addEventListener('click', (e) => {
+    if (e.target.closest('.btn-help')) return; // Don't navigate if help clicked
     playSound('click');
     showPage('bill');
     initBillPage();
   });
-  document.getElementById('btn-top10').addEventListener('click', () => {
+  document.getElementById('btn-top10').addEventListener('click', (e) => {
+    if (e.target.closest('.btn-help')) return;
     playSound('click');
     showPage('top10');
     initTop10Page();
   });
-  document.getElementById('btn-currency').addEventListener('click', () => {
+  document.getElementById('btn-currency').addEventListener('click', (e) => {
+    if (e.target.closest('.btn-help')) return;
     playSound('click');
     showPage('currency');
     initCurrencyPage();
