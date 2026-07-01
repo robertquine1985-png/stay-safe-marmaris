@@ -438,9 +438,13 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>📸 Scan a Menu</h3>
-      <p>Take a photo of the bar's menu — AI will read all drinks, categories & prices and save them to this bar.</p>
-      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div style="font-size:2.5rem;">📷</div><p>Tap to take a photo or select from gallery</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
-      <input type="file" id="scan-input" accept="image/*" capture="environment" onchange="handleScanUpload(this)">
+      <p>Take up to <strong>6 photos</strong> of the bar's menu pages — AI will read all drinks, categories & prices and save them to this bar.</p>
+      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div style="font-size:2.5rem;">📷</div><p>Tap to add menu photos (up to 6 pages)</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
+      <input type="file" id="scan-input" accept="image/*" capture="environment" multiple onchange="handleScanUpload(this)">
+      <div id="scan-thumbnails" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;"></div>
+      <div id="scan-page-count" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;"></div>
+      <button class="modal-btn secondary" id="scan-add-more-btn" style="display:none;margin-bottom:10px;" onclick="document.getElementById('scan-input-extra').click()">📷 Add More Pages</button>
+      <input type="file" id="scan-input-extra" accept="image/*" capture="environment" multiple onchange="handleScanAddMore(this)" style="display:none;">
       <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 Scan & Add All Prices</button>
       <div id="scan-result"></div>
       <div id="scan-actions" style="display:none;margin-top:12px;">

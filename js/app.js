@@ -985,19 +985,73 @@ function openScanModal() {
   document.getElementById('scan-process-btn').style.display = 'none';
   document.getElementById('scan-result').innerHTML = '';
   document.getElementById('scan-actions').style.display = 'none';
+  document.getElementById('scan-thumbnails').innerHTML = '';
+  document.getElementById('scan-page-count').textContent = '';
+  document.getElementById('scan-add-more-btn').style.display = 'none';
   AppState.scanResults = null;
+  AppState.scanFiles = [];
   document.getElementById('modal-scan').classList.add('open');
 }
-function handleScanUpload(input) { if(input.files&&input.files[0]){AppState.scanFile=input.files[0];document.getElementById('scan-filename').textContent=input.files[0].name;document.getElementById('scan-process-btn').style.display='block';showToast('Menu photo selected!','success');} }
+
+function handleScanUpload(input) {
+  if (input.files && input.files.length > 0) {
+    const files = Array.from(input.files).slice(0, 6);
+    AppState.scanFiles = files;
+    updateScanThumbnails();
+    showToast(`${files.length} menu page${files.length > 1 ? 's' : ''} selected!`, 'success');
+  }
+}
+
+function handleScanAddMore(input) {
+  if (input.files && input.files.length > 0) {
+    const remaining = 6 - AppState.scanFiles.length;
+    const newFiles = Array.from(input.files).slice(0, remaining);
+    AppState.scanFiles = [...AppState.scanFiles, ...newFiles];
+    updateScanThumbnails();
+    showToast(`${newFiles.length} more page${newFiles.length > 1 ? 's' : ''} added!`, 'success');
+  }
+}
+
+function updateScanThumbnails() {
+  const container = document.getElementById('scan-thumbnails');
+  container.innerHTML = '';
+  AppState.scanFiles.forEach((file, idx) => {
+    const thumb = document.createElement('div');
+    thumb.style.cssText = 'position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);';
+    const img = document.createElement('img');
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    img.src = URL.createObjectURL(file);
+    const badge = document.createElement('div');
+    badge.style.cssText = 'position:absolute;top:2px;right:2px;background:var(--primary);color:#000;width:18px;height:18px;border-radius:50%;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;';
+    badge.textContent = idx + 1;
+    const removeBtn = document.createElement('div');
+    removeBtn.style.cssText = 'position:absolute;bottom:2px;right:2px;background:rgba(239,68,68,0.9);color:#fff;width:16px;height:16px;border-radius:50%;font-size:0.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = (e) => { e.stopPropagation(); AppState.scanFiles.splice(idx, 1); updateScanThumbnails(); };
+    thumb.appendChild(img);
+    thumb.appendChild(badge);
+    thumb.appendChild(removeBtn);
+    container.appendChild(thumb);
+  });
+
+  const count = AppState.scanFiles.length;
+  document.getElementById('scan-page-count').textContent = count > 0 ? `${count}/6 menu pages added` : '';
+  document.getElementById('scan-filename').textContent = count > 0 ? `${count} page${count > 1 ? 's' : ''} ready to scan` : '';
+  document.getElementById('scan-process-btn').style.display = count > 0 ? 'block' : 'none';
+  document.getElementById('scan-add-more-btn').style.display = (count > 0 && count < 6) ? 'block' : 'none';
+}
 function processScanImage() {
   const scanResult=document.getElementById('scan-result');
-  scanResult.innerHTML='<div class="loading"><div class="spinner"></div>AI is reading your menu...</div>';
+  const pageCount = AppState.scanFiles.length;
+  scanResult.innerHTML=`<div class="loading"><div class="spinner"></div>AI is reading ${pageCount} menu page${pageCount > 1 ? 's' : ''}...</div>`;
   document.getElementById('scan-process-btn').style.display = 'none';
+  document.getElementById('scan-add-more-btn').style.display = 'none';
 
   // Simulate AI OCR — in production this would call a real OCR API
   setTimeout(()=>{
-    // Generate realistic scanned results based on bar type
+    // Generate realistic scanned results based on bar type and number of pages
     const barName = AppState.selectedBar ? AppState.selectedBar.name : 'Bar';
+    const pageCount = AppState.scanFiles.length;
     const scannedMenu = {
       spirits: [
         {name:"Vodka Shot (Local)",price:Math.round(80+Math.random()*40)},
@@ -1060,7 +1114,7 @@ function processScanImage() {
     AppState.scanResults = scannedMenu;
 
     // Display results
-    scanResult.innerHTML = `<h4 style="margin-bottom:12px;color:var(--success)">✅ Menu Scanned for ${barName}:</h4>`;
+    scanResult.innerHTML = `<h4 style="margin-bottom:12px;color:var(--success)">✅ Menu Scanned for ${barName} (${pageCount} page${pageCount > 1 ? 's' : ''}):</h4>`;
     const categories = {spirits:'🥃 Spirits',cocktails:'🍸 Cocktails',beers:'🍺 Beers',mixers:'🧊 Mixers',softDrinks:'🥤 Soft Drinks'};
     Object.entries(categories).forEach(([key, label]) => {
       const items = scannedMenu[key] || [];
@@ -1072,8 +1126,8 @@ function processScanImage() {
     });
     scanResult.innerHTML += `<p style="color:var(--text-muted);font-size:0.78rem;margin-top:12px;">💡 Prices are AI-estimated from the image. You can still edit each price when adding to your bill.</p>`;
     document.getElementById('scan-actions').style.display = 'block';
-    showToast(`Menu scanned! ${Object.values(scannedMenu).flat().length} items detected 📸`, 'success');
-  }, 3000);
+    showToast(`Menu scanned! ${Object.values(scannedMenu).flat().length} items from ${pageCount} page${pageCount > 1 ? 's' : ''} detected 📸`, 'success');
+  }, 2000 + (AppState.scanFiles.length * 800));
 }
 
 function saveScanResultsToBar() {
@@ -1127,15 +1181,27 @@ function saveScanResultsToBar() {
     localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
   }
 
-  // Store the scanned menu image reference for this bar
-  if (AppState.scanFile) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const barMenuImages = JSON.parse(localStorage.getItem('ssm_bar_menu_images') || '{}');
-      barMenuImages[barId] = { image: e.target.result, date: new Date().toISOString(), scannedBy: AppState.user ? AppState.user.name : 'Guest' };
-      localStorage.setItem('ssm_bar_menu_images', JSON.stringify(barMenuImages));
-    };
-    reader.readAsDataURL(AppState.scanFile);
+  // Store the scanned menu images for this bar (up to 6 pages)
+  if (AppState.scanFiles && AppState.scanFiles.length > 0) {
+    const barMenuImages = JSON.parse(localStorage.getItem('ssm_bar_menu_images') || '{}');
+    if (!barMenuImages[barId]) barMenuImages[barId] = { images: [], date: null, scannedBy: null };
+    barMenuImages[barId].date = new Date().toISOString();
+    barMenuImages[barId].scannedBy = AppState.user ? AppState.user.name : 'Guest';
+    barMenuImages[barId].pageCount = AppState.scanFiles.length;
+
+    // Store image data for each page
+    let processed = 0;
+    AppState.scanFiles.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        barMenuImages[barId].images[idx] = e.target.result;
+        processed++;
+        if (processed === AppState.scanFiles.length) {
+          localStorage.setItem('ssm_bar_menu_images', JSON.stringify(barMenuImages));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   closeModal('modal-scan');
