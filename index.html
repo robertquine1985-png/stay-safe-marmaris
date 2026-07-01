@@ -42,18 +42,21 @@
         <span class="btn-title">BILL SAVER</span>
         <span class="btn-sub">Track your drinks & avoid scams</span>
         <span class="btn-arrow">→</span>
+        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('bill')">ℹ️</span>
       </button>
       <button class="menu-btn menu-btn-top10" id="btn-top10">
         <span class="btn-icon">🏆</span>
         <span class="btn-title">TOP 10 BARS</span>
         <span class="btn-sub">Best rated places by tourists</span>
         <span class="btn-arrow">→</span>
+        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('top10')">ℹ️</span>
       </button>
       <button class="menu-btn menu-btn-currency" id="btn-currency">
         <span class="btn-icon">💱</span>
         <span class="btn-title">CURRENCY CONVERTER</span>
         <span class="btn-sub">GBP & EUR to Turkish Lira</span>
         <span class="btn-arrow">→</span>
+        <span class="btn-help" onclick="event.stopPropagation(); openHelpModal('currency')">ℹ️</span>
       </button>
     </div>
   </div>
@@ -257,6 +260,16 @@
 
   <!-- ===== MODALS ===== -->
 
+  <!-- Help Modal -->
+  <div class="modal-overlay" id="modal-help">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3 id="help-title">How it works</h3>
+      <div id="help-content"></div>
+      <button class="modal-btn primary" onclick="closeModal('modal-help')">Got it! 👍</button>
+    </div>
+  </div>
+
   <!-- Price Confirm Modal -->
   <div class="modal-overlay" id="modal-price-confirm">
     <div class="modal">
@@ -371,21 +384,38 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>✅ Confirm Bill Paid</h3>
-      <p>Save this bill to your history:</p>
+      <p>Save this bill & rate how accurate it was:</p>
       <div style="background:var(--dark3);border-radius:10px;padding:14px;margin-bottom:14px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:var(--text-muted)">Bar:</span><strong id="bill-paid-bar">—</strong></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:var(--text-muted)">Items:</span><strong id="bill-paid-items-count">0</strong></div>
-        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total:</span><strong id="bill-paid-total" style="color:var(--primary)">₺0</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Your tracked total:</span><strong id="bill-paid-total" style="color:var(--primary)">₺0</strong></div>
       </div>
-      <textarea class="review-textarea" id="bill-paid-comment" placeholder="Optional comment... (e.g. Bill matched! or They added extra drinks)"></textarea>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:8px;">Did the actual bill match? 🧾</label>
+        <div class="match-rating" id="match-rating-btns" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="match-btn" data-match="perfect" onclick="setMatchRating('perfect')">✅ Perfect Match</button>
+          <button class="match-btn" data-match="close" onclick="setMatchRating('close')">👍 Close Match</button>
+          <button class="match-btn" data-match="not" onclick="setMatchRating('not')">❌ Not Matched</button>
+        </div>
+        <input type="hidden" id="bill-match-rating" value="">
+      </div>
+
+      <textarea class="review-textarea" id="bill-paid-comment" placeholder="Optional comment... (e.g. 'They added 2 drinks we didn't order' or 'Perfect — honest bar!')"></textarea>
+
       <div class="upload-area" onclick="document.getElementById('bill-photo-input').click()">
-        <div>📸</div>
-        <p>Upload photo of actual bill (optional)</p>
+        <div>🧾</div>
+        <p><strong>Scan your receipt</strong> — upload a photo of your actual bill to compare</p>
         <p id="bill-paid-filename" style="color:var(--primary);font-size:0.8rem;"></p>
       </div>
       <input type="file" id="bill-photo-input" accept="image/*" capture="environment" onchange="handleBillPhotoUpload(this)">
       <input type="hidden" id="bill-paid-photo-data">
-      <button class="modal-btn primary" onclick="confirmBillPaid(); playSound('paid');">✅ Save to History & Clear Bill</button>
+
+      <div style="background:rgba(0,201,255,0.06);border:1px solid rgba(0,201,255,0.2);border-radius:10px;padding:12px;font-size:0.78rem;color:var(--primary);margin-bottom:14px;line-height:1.6;">
+        💡 <strong>How it works:</strong> Your tracked drinks give a rough estimate of what the bill should be. If the actual bill is much higher, the bar may have added extras. Rate it so other tourists know!
+      </div>
+
+      <button class="modal-btn primary" onclick="confirmBillPaid(); playSound('paid');">✅ Save to History & Rate Bar</button>
       <button class="modal-btn secondary" onclick="closeModal('modal-bill-paid')">Cancel</button>
     </div>
   </div>

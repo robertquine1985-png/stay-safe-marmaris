@@ -459,6 +459,7 @@ function handleBillPhotoUpload(input) {
 function confirmBillPaid() {
   const comment = document.getElementById('bill-paid-comment').value.trim();
   const photoData = document.getElementById('bill-paid-photo-data').value;
+  const matchRating = document.getElementById('bill-match-rating').value;
   const total = AppState.bill.reduce((s, i) => s + i.price * i.qty, 0);
   const gbpRate = AppState.exchangeRates.GBP_TRY;
 
@@ -470,6 +471,7 @@ function confirmBillPaid() {
     totalTRY: total,
     totalGBP: (total / gbpRate).toFixed(2),
     comment: comment,
+    matchRating: matchRating || 'none',
     photo: photoData || null,
     date: new Date().toISOString(),
     userId: AppState.user ? AppState.user.id : null,
@@ -479,15 +481,23 @@ function confirmBillPaid() {
   AppState.billHistory.unshift(billRecord);
   localStorage.setItem('ssm_bill_history', JSON.stringify(AppState.billHistory));
 
-  // Update bill count
-  const count = parseInt(localStorage.getItem('ssm_bill_count') || '0') + 1;
-  localStorage.setItem('ssm_bill_count', String(count));
+  // Update bar rating based on match
+  if (matchRating && AppState.selectedBar) {
+    const barRatings = JSON.parse(localStorage.getItem('ssm_bar_match_ratings') || '{}');
+    if (!barRatings[AppState.selectedBar.id]) barRatings[AppState.selectedBar.id] = [];
+    barRatings[AppState.selectedBar.id].push({ rating: matchRating, date: new Date().toISOString(), user: AppState.user ? AppState.user.name : 'Guest' });
+    localStorage.setItem('ssm_bar_match_ratings', JSON.stringify(barRatings));
+  }
 
   // Clear current bill
   AppState.bill = [];
   renderBill();
   closeModal('modal-bill-paid');
-  showToast('Bill saved to history! ✅', 'success');
+
+  const matchMsg = matchRating === 'perfect' ? 'Perfect match! Great honest bar ✅' :
+                   matchRating === 'close' ? 'Close match — decent bar 👍' :
+                   matchRating === 'not' ? 'Didn\'t match — be careful here ⚠️' : 'Bill saved ✅';
+  showToast(matchMsg, matchRating === 'not' ? 'error' : 'success');
 }
 
 
@@ -507,10 +517,13 @@ function initBillHistoryPage() {
     card.className = 'history-card';
     const date = new Date(bill.date).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
     const itemCount = bill.items.reduce((s,i)=>s+i.qty, 0);
+    const matchBadge = bill.matchRating === 'perfect' ? '<span class="badge badge-new">✅ Perfect Match</span>' :
+                       bill.matchRating === 'close' ? '<span class="badge badge-hot" style="background:rgba(255,215,0,0.2);color:var(--gold);border-color:rgba(255,215,0,0.3)">👍 Close Match</span>' :
+                       bill.matchRating === 'not' ? '<span class="badge" style="background:rgba(239,68,68,0.2);color:var(--danger);border:1px solid rgba(239,68,68,0.3)">❌ Not Matched</span>' : '';
     card.innerHTML = `
       <div class="history-card-header">
         <div>
-          <div class="history-bar-name">${bill.barName}</div>
+          <div class="history-bar-name">${bill.barName} ${matchBadge}</div>
           <div class="history-date">${date} • ${itemCount} items • by ${bill.userName}</div>
         </div>
         <div class="history-total">₺${bill.totalTRY}<br><span style="font-size:0.75rem;color:var(--success)">£${bill.totalGBP}</span></div>
@@ -1086,6 +1099,33 @@ function playSound(type) {
 // Override showToast to add sounds
 const _origShowToast = showToast;
 
+
+// ===== HELP MODALS =====
+function openHelpModal(section) {
+  const title = document.getElementById('help-title');
+  const content = document.getElementById('help-content');
+  switch(section) {
+    case 'bill':
+      title.textContent = '🧾 Bill Saver — How It Works';
+      content.innerHTML = '<div class="help-section"><p><strong>Create a virtual bill for the bar you\'re in so you don\'t get scammed by any added drinks.</strong></p><div class="help-step"><div class="help-step-num">1</div><div class="help-step-text">Select the bar you\'re in from the dropdown (or add a new one)</div></div><div class="help-step"><div class="help-step-num">2</div><div class="help-step-text">Each time you order a drink, tap it to add to your bill. Edit the price if needed.</div></div><div class="help-step"><div class="help-step-num">3</div><div class="help-step-text">For spirits, choose your mixer (Vodka + Coke, etc.) and the combined price is added.</div></div><div class="help-step"><div class="help-step-num">4</div><div class="help-step-text">Your running total builds up — this is roughly what your actual bill should be.</div></div><div class="help-step"><div class="help-step-num">5</div><div class="help-step-text">When you pay, tap "Bill Paid", scan your receipt, and rate if it matched.</div></div><p style="margin-top:12px;color:var(--warning);">⚠️ The actual bill may differ slightly due to service charges, table charges, or rounding — but if it\'s WAY more, the bar may have added drinks you didn\'t order!</p><p style="color:var(--success);margin-top:8px;">✅ Track every drink as you go = no nasty surprises when the bill comes.</p></div>';
+      break;
+    case 'top10':
+      title.textContent = '🏆 Top 10 Bars — How It Works';
+      content.innerHTML = '<div class="help-section"><p><strong>See the best-rated bars and restaurants in Marmaris, ranked by real tourists.</strong></p><div class="help-step"><div class="help-step-num">1</div><div class="help-step-text">Bars are ranked by thumbs up vs thumbs down votes from real users</div></div><div class="help-step"><div class="help-step-num">2</div><div class="help-step-text">Filter by Bars Only, Restaurants Only, or see the Top 20</div></div><div class="help-step"><div class="help-step-num">3</div><div class="help-step-text">Vote 👍 or 👎 after your visit (must be signed in)</div></div><div class="help-step"><div class="help-step-num">4</div><div class="help-step-text">Bars with honest bills and best experiences rise to the top!</div></div><p style="margin-top:12px;color:var(--primary);">💡 The ratings combine user votes with bill accuracy — honest bars rank higher.</p></div>';
+      break;
+    case 'currency':
+      title.textContent = '💱 Currency Converter — How It Works';
+      content.innerHTML = '<div class="help-section"><p><strong>Quickly convert between GBP, EUR, and Turkish Lira.</strong></p><div class="help-step"><div class="help-step-num">1</div><div class="help-step-text">Enter an amount in any currency to instantly see the conversion</div></div><div class="help-step"><div class="help-step-num">2</div><div class="help-step-text">Use quick buttons (£10, £20, £50) for common amounts</div></div><div class="help-step"><div class="help-step-num">3</div><div class="help-step-text">Convert your bar bill from TRY back to GBP/EUR to see what you spent</div></div><div class="help-step"><div class="help-step-num">4</div><div class="help-step-text">Rates update live when online, or use estimated rates offline</div></div><p style="margin-top:12px;color:var(--success);">✅ Always check your bill total against the converter before paying!</p></div>';
+      break;
+  }
+  document.getElementById('modal-help').classList.add('open');
+}
+
+// ===== MATCH RATING =====
+function setMatchRating(rating) {
+  document.getElementById('bill-match-rating').value = rating;
+  document.querySelectorAll('.match-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.match === rating));
+}
 
 // ===== UTILITY FUNCTIONS =====
 function showToast(msg, type = 'info') {
