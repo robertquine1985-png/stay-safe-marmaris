@@ -1100,6 +1100,68 @@ function playSound(type) {
 const _origShowToast = showToast;
 
 
+// ===== BAR REVIEWS/HISTORY MODAL =====
+function openBarReviewsModal() {
+  if (!AppState.selectedBar) { showToast('Select a bar first to see reviews', 'error'); return; }
+  const bar = AppState.selectedBar;
+  const barId = bar.id;
+
+  document.getElementById('bar-reviews-title').textContent = `📋 ${bar.name} — User Bills`;
+  document.getElementById('bar-reviews-subtitle').textContent = `See what other users experienced here:`;
+
+  const content = document.getElementById('bar-reviews-content');
+  content.innerHTML = '';
+
+  // Get all bill history for this bar
+  const allHistory = AppState.billHistory.filter(b => b.barId === barId || b.barName === bar.name);
+
+  // Get match ratings for this bar
+  const barRatings = JSON.parse(localStorage.getItem('ssm_bar_match_ratings') || '{}');
+  const ratings = barRatings[barId] || [];
+
+  if (allHistory.length === 0 && ratings.length === 0) {
+    content.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="icon">🧾</div><h3>No bills yet for ${bar.name}</h3><p>Be the first to track your bill here! Once you confirm a paid bill, it\'ll show for other users.</p></div>`;
+  } else {
+    // Summary stats
+    const perfectCount = allHistory.filter(b => b.matchRating === 'perfect').length;
+    const closeCount = allHistory.filter(b => b.matchRating === 'close').length;
+    const notCount = allHistory.filter(b => b.matchRating === 'not').length;
+
+    if (allHistory.length > 0) {
+      content.innerHTML += `<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:80px;text-align:center;padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;"><div style="font-size:1.2rem;font-weight:800;color:var(--success);">${perfectCount}</div><div style="font-size:0.7rem;color:var(--text-muted);">Perfect</div></div>
+        <div style="flex:1;min-width:80px;text-align:center;padding:10px;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);border-radius:10px;"><div style="font-size:1.2rem;font-weight:800;color:var(--gold);">${closeCount}</div><div style="font-size:0.7rem;color:var(--text-muted);">Close</div></div>
+        <div style="flex:1;min-width:80px;text-align:center;padding:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;"><div style="font-size:1.2rem;font-weight:800;color:var(--danger);">${notCount}</div><div style="font-size:0.7rem;color:var(--text-muted);">Not Matched</div></div>
+      </div>`;
+    }
+
+    // Show each bill
+    allHistory.forEach(bill => {
+      const date = new Date(bill.date).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const itemCount = bill.items.reduce((s,i)=>s+i.qty, 0);
+      const matchBadge = bill.matchRating === 'perfect' ? '<span style="color:var(--success);font-weight:600;">✅ Perfect Match</span>' :
+                         bill.matchRating === 'close' ? '<span style="color:var(--gold);font-weight:600;">👍 Close Match</span>' :
+                         bill.matchRating === 'not' ? '<span style="color:var(--danger);font-weight:600;">❌ Not Matched</span>' : '';
+
+      content.innerHTML += `<div style="background:var(--dark3);border:1px solid var(--card-border);border-radius:12px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><div style="font-weight:600;font-size:0.9rem;">👤 ${bill.userName || 'Guest'}</div><div style="font-size:0.75rem;color:var(--text-muted);">${date}</div></div>
+          <div style="text-align:right;"><div style="font-size:1.1rem;font-weight:700;color:var(--primary);">₺${bill.totalTRY}</div><div style="font-size:0.75rem;color:var(--success);">£${bill.totalGBP}</div></div>
+        </div>
+        <div style="margin-top:8px;">${matchBadge}</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+          ${bill.items.slice(0, 6).map(i => `<span style="padding:3px 8px;border-radius:12px;font-size:0.7rem;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-muted);">${i.name} x${i.qty}</span>`).join('')}
+          ${bill.items.length > 6 ? `<span style="padding:3px 8px;font-size:0.7rem;color:var(--text-muted);">+${bill.items.length - 6} more</span>` : ''}
+        </div>
+        ${bill.comment ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,215,0,0.06);border-radius:8px;font-size:0.8rem;color:rgba(255,215,0,0.9);font-style:italic;">💬 "${bill.comment}"</div>` : ''}
+        ${bill.photo ? `<div style="margin-top:8px;"><img src="${bill.photo}" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--card-border);cursor:pointer;" onclick="openPhotoViewer('${bill.photo}')" alt="Receipt"></div>` : ''}
+      </div>`;
+    });
+  }
+
+  document.getElementById('modal-bar-reviews').classList.add('open');
+}
+
 // ===== HELP MODALS =====
 function openHelpModal(section) {
   const title = document.getElementById('help-title');

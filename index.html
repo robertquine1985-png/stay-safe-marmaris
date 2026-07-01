@@ -83,6 +83,7 @@
             <option value="">-- Select a Bar / Restaurant --</option>
           </select>
           <button class="add-bar-btn" onclick="openAddBarModal()" title="Add new bar">+</button>
+          <button class="add-bar-btn" onclick="openBarReviewsModal()" title="See other users' bills" style="font-size:0.75rem;padding:12px 10px;">📋</button>
         </div>
       </div>
 
@@ -259,6 +260,17 @@
 
 
   <!-- ===== MODALS ===== -->
+
+  <!-- Bar Reviews/History Modal -->
+  <div class="modal-overlay" id="modal-bar-reviews">
+    <div class="modal" style="max-height:85vh;">
+      <div class="modal-handle"></div>
+      <h3 id="bar-reviews-title">📋 User Bill History</h3>
+      <p id="bar-reviews-subtitle">See what other users experienced at this bar:</p>
+      <div id="bar-reviews-content" style="max-height:60vh;overflow-y:auto;"></div>
+      <button class="modal-btn secondary" onclick="closeModal('modal-bar-reviews')" style="margin-top:12px;">Close</button>
+    </div>
+  </div>
 
   <!-- Help Modal -->
   <div class="modal-overlay" id="modal-help">
