@@ -1,4 +1,4 @@
-// ===== STAY SAFE MARMARIS — MAIN APP =====
+// ===== STAY SAFE MARMARIS — MAIN APP v2.0 =====
 // State
 const AppState = {
   currentPage: 'intro',
@@ -10,6 +10,8 @@ const AppState = {
   ratesLastUpdated: null,
   votes: JSON.parse(localStorage.getItem('ssm_votes') || '{}'),
   customBars: JSON.parse(localStorage.getItem('ssm_custom_bars') || '[]'),
+  crowdPrices: JSON.parse(localStorage.getItem('ssm_crowd_prices') || '{}'),
+  billHistory: JSON.parse(localStorage.getItem('ssm_bill_history') || '[]'),
   top10Filter: 'all',
   top10Limit: 10,
   scanFile: null
@@ -36,9 +38,7 @@ window.addEventListener('popstate', (e) => {
 function initIntro() {
   generateStars();
   generateBubbles();
-  // Auto-advance after 4.5 seconds
   setTimeout(() => transitionToMenu(), 4500);
-  // Click/tap to skip
   document.getElementById('page-intro').addEventListener('click', transitionToMenu, { once: true });
 }
 
@@ -48,13 +48,7 @@ function generateStars() {
     const star = document.createElement('div');
     star.className = 'star';
     const size = Math.random() * 2.5 + 0.5;
-    star.style.cssText = `
-      width:${size}px; height:${size}px;
-      left:${Math.random() * 100}%;
-      top:${Math.random() * 100}%;
-      animation-delay:${Math.random() * 3}s;
-      animation-duration:${2 + Math.random() * 3}s;
-    `;
+    star.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s;`;
     container.appendChild(star);
   }
 }
@@ -65,14 +59,7 @@ function generateBubbles() {
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     const size = 60 + Math.random() * 120;
-    bubble.style.cssText = `
-      width:${size}px; height:${size}px;
-      left:${Math.random() * 100}%;
-      top:${Math.random() * 100}%;
-      animation-delay:${Math.random() * 4}s;
-      animation-duration:${6 + Math.random() * 6}s;
-      opacity:${0.2 + Math.random() * 0.3};
-    `;
+    bubble.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-delay:${Math.random()*4}s;animation-duration:${6+Math.random()*6}s;opacity:${0.2+Math.random()*0.3};`;
     container.appendChild(bubble);
   }
 }
@@ -85,16 +72,12 @@ function transitionToMenu() {
   intro.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
   intro.style.opacity = '0';
   intro.style.transform = 'scale(1.05)';
-  setTimeout(() => {
-    intro.style.display = 'none';
-    showPage('menu');
-  }, 800);
+  setTimeout(() => { intro.style.display = 'none'; showPage('menu'); }, 800);
 }
 
 
 // ===== AUTH =====
 function initAuth() {
-  const users = JSON.parse(localStorage.getItem('ssm_users') || '[]');
   const savedUser = localStorage.getItem('ssm_current_user');
   if (savedUser) AppState.user = JSON.parse(savedUser);
   updateAuthUI();
@@ -153,12 +136,31 @@ function logout() {
 }
 
 
+// ===== CROWD-SOURCED PRICES =====
+// Prices saved by users override base prices for a bar
+function getCrowdPrice(barId, itemName) {
+  const key = `${barId}_${itemName}`;
+  return AppState.crowdPrices[key] || null;
+}
+
+function saveCrowdPrice(barId, itemName, price) {
+  const key = `${barId}_${itemName}`;
+  AppState.crowdPrices[key] = { price, updatedBy: AppState.user ? AppState.user.name : 'Anonymous', updatedAt: new Date().toISOString() };
+  localStorage.setItem('ssm_crowd_prices', JSON.stringify(AppState.crowdPrices));
+}
+
+function getItemPrice(barId, item) {
+  const crowd = getCrowdPrice(barId, item.name);
+  return crowd ? crowd.price : item.price;
+}
+
 // ===== BILL SAVER =====
 function initBillPage() {
   populateBarDropdown();
   renderDrinkGrid('spirits');
   renderBill();
   setActiveCategory('spirits');
+  updateMapHeader();
 }
 
 function getAllBars() {
@@ -180,9 +182,32 @@ function populateBarDropdown() {
 }
 
 function selectBar(id) {
+  // Prevent switching bars if bill has items
+  if (AppState.bill.length > 0 && id && AppState.selectedBar && String(id) !== String(AppState.selectedBar.id)) {
+    showToast('Clear your current bill before switching bars', 'error');
+    document.getElementById('bar-select').value = AppState.selectedBar.id;
+    return;
+  }
   const all = getAllBars();
   AppState.selectedBar = all.find(b => String(b.id) === String(id)) || null;
   renderDrinkGrid(AppState.currentCategory);
+  updateMapHeader();
+}
+
+function updateMapHeader() {
+  const mapContainer = document.getElementById('bar-map-header');
+  if (!mapContainer) return;
+  if (!AppState.selectedBar) {
+    mapContainer.style.display = 'none';
+    return;
+  }
+  const bar = AppState.selectedBar;
+  const query = encodeURIComponent(`${bar.name}, ${bar.location}, Marmaris, Turkey`);
+  mapContainer.style.display = 'block';
+  mapContainer.innerHTML = `
+    <div class="map-bar-name">📍 ${bar.name} — ${bar.location}</div>
+    <iframe class="map-iframe" src="https://www.google.com/maps?q=${query}&output=embed" allowfullscreen loading="lazy"></iframe>
+  `;
 }
 
 function setActiveCategory(cat) {
@@ -199,17 +224,22 @@ function renderDrinkGrid(cat) {
   const menu = bar ? bar.menu : DEFAULT_PRICES;
   const items = menu[cat] || [];
   const gbpRate = AppState.exchangeRates.GBP_TRY;
+  const barId = bar ? bar.id : 'default';
 
   items.forEach(item => {
     const card = document.createElement('div');
     card.className = 'drink-card';
-    const gbp = (item.price / gbpRate).toFixed(2);
+    const actualPrice = getItemPrice(barId, item);
+    const gbp = (actualPrice / gbpRate).toFixed(2);
+    const crowd = getCrowdPrice(barId, item.name);
+    const crowdBadge = crowd ? `<div class="crowd-badge">👥 Updated by ${crowd.updatedBy}</div>` : '';
     card.innerHTML = `
       <div class="drink-name">${item.name}</div>
-      <div class="drink-price">₺${item.price}</div>
+      <div class="drink-price">₺${actualPrice}</div>
       <div class="drink-price-gbp">≈ £${gbp}</div>
+      ${crowdBadge}
     `;
-    card.addEventListener('click', () => addToBill(item, cat));
+    card.addEventListener('click', () => openPriceConfirmModal(item, cat, barId));
     grid.appendChild(card);
   });
 
@@ -217,25 +247,102 @@ function renderDrinkGrid(cat) {
   const addCard = document.createElement('div');
   addCard.className = 'drink-card';
   addCard.style.border = '1px dashed rgba(255,255,255,0.2)';
-  addCard.innerHTML = `
-    <div class="drink-name" style="color:var(--text-muted)">+ Custom</div>
-    <div class="drink-price" style="color:var(--text-muted)">Add item</div>
-  `;
+  addCard.innerHTML = `<div class="drink-name" style="color:var(--text-muted)">+ Custom</div><div class="drink-price" style="color:var(--text-muted)">Add item</div>`;
   addCard.addEventListener('click', () => openCustomItemModal(cat));
   grid.appendChild(addCard);
 }
 
-function addToBill(item, cat) {
-  // For spirits, offer mixer popup
+
+// ===== PRICE CONFIRM MODAL (Editable price before adding) =====
+function openPriceConfirmModal(item, cat, barId) {
+  const actualPrice = getItemPrice(barId, item);
+  // For spirits, show mixer options with editable price
   if (cat === 'spirits') {
-    openMixerModal(item);
+    openMixerModal(item, barId);
     return;
   }
-  addItemToBill({ name: item.name, price: item.price, qty: 1 });
+  // For other categories, show price confirm popup
+  document.getElementById('price-confirm-name').textContent = item.name;
+  document.getElementById('price-confirm-input').value = actualPrice;
+  document.getElementById('price-confirm-cat').value = cat;
+  document.getElementById('price-confirm-item-name').value = item.name;
+  document.getElementById('price-confirm-bar-id').value = barId;
+  const crowd = getCrowdPrice(barId, item.name);
+  const infoEl = document.getElementById('price-confirm-info');
+  if (crowd) {
+    infoEl.innerHTML = `<span style="color:var(--success)">👥 Last updated by ${crowd.updatedBy}</span>`;
+  } else {
+    infoEl.innerHTML = `<span style="color:var(--text-muted)">Base price — edit if different on menu</span>`;
+  }
+  document.getElementById('modal-price-confirm').classList.add('open');
+}
+
+function confirmAddToBill() {
+  const name = document.getElementById('price-confirm-item-name').value;
+  const price = parseInt(document.getElementById('price-confirm-input').value);
+  const barId = document.getElementById('price-confirm-bar-id').value;
+  if (!price || price < 1) { showToast('Enter a valid price', 'error'); return; }
+  // Save crowd-sourced price for this bar
+  saveCrowdPrice(barId, name, price);
+  addItemToBill({ name, price, qty: 1 });
+  closeModal('modal-price-confirm');
+  // Refresh grid to show updated price
+  renderDrinkGrid(AppState.currentCategory);
+}
+
+// ===== MIXER MODAL (with editable prices) =====
+function openMixerModal(spirit, barId) {
+  const modal = document.getElementById('modal-mixer');
+  const bar = AppState.selectedBar;
+  const mixers = (bar ? bar.menu.mixers : DEFAULT_PRICES.mixers) || [];
+  const spiritPrice = getItemPrice(barId || 'default', spirit);
+
+  document.getElementById('mixer-spirit-name').textContent = spirit.name;
+  document.getElementById('mixer-spirit-price-input').value = spiritPrice;
+  document.getElementById('mixer-spirit-item-name').value = spirit.name;
+  document.getElementById('mixer-bar-id').value = barId || 'default';
+
+  const list = document.getElementById('mixer-list');
+  list.innerHTML = '';
+  mixers.forEach(mixer => {
+    const mixerPrice = getItemPrice(barId || 'default', mixer);
+    const btn = document.createElement('button');
+    btn.className = 'mixer-option-btn';
+    btn.innerHTML = `<span>${mixer.name}</span><span style="color:var(--primary)">+ ₺${mixerPrice}</span>`;
+    btn.onclick = () => {
+      const editedSpiritPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
+      saveCrowdPrice(barId || 'default', spirit.name, editedSpiritPrice);
+      const totalPrice = editedSpiritPrice + mixerPrice;
+      addItemToBill({ name: `${spirit.name} & ${mixer.name}`, price: totalPrice, qty: 1 });
+      closeModal('modal-mixer');
+      renderDrinkGrid(AppState.currentCategory);
+    };
+    list.appendChild(btn);
+  });
+
+  // No mixer option
+  const noMixerBtn = document.createElement('button');
+  noMixerBtn.className = 'mixer-no-mixer-btn';
+  noMixerBtn.textContent = 'No mixer — just the shot';
+  noMixerBtn.onclick = () => {
+    const editedSpiritPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
+    saveCrowdPrice(barId || 'default', spirit.name, editedSpiritPrice);
+    addItemToBill({ name: spirit.name, price: editedSpiritPrice, qty: 1 });
+    closeModal('modal-mixer');
+    renderDrinkGrid(AppState.currentCategory);
+  };
+  list.appendChild(noMixerBtn);
+
+  modal.classList.add('open');
+}
+
+function addToBill(item, cat) {
+  const barId = AppState.selectedBar ? AppState.selectedBar.id : 'default';
+  openPriceConfirmModal(item, cat, barId);
 }
 
 function addItemToBill(item) {
-  const existing = AppState.bill.find(b => b.name === item.name);
+  const existing = AppState.bill.find(b => b.name === item.name && b.price === item.price);
   if (existing) {
     existing.qty++;
   } else {
@@ -243,16 +350,11 @@ function addItemToBill(item) {
   }
   renderBill();
   showToast(`${item.name} added 🍹`, 'success');
-  // Bounce bill panel
   const panel = document.getElementById('bill-panel');
-  panel.style.transform = 'scale(1.01)';
-  setTimeout(() => panel.style.transform = '', 150);
+  if (panel) { panel.style.transform = 'scale(1.01)'; setTimeout(() => panel.style.transform = '', 150); }
 }
 
-function removeBillItem(index) {
-  AppState.bill.splice(index, 1);
-  renderBill();
-}
+function removeBillItem(index) { AppState.bill.splice(index, 1); renderBill(); }
 
 function updateQty(index, delta) {
   AppState.bill[index].qty += delta;
@@ -260,6 +362,8 @@ function updateQty(index, delta) {
   renderBill();
 }
 
+
+// ===== BILL RENDERING =====
 function renderBill() {
   const items = document.getElementById('bill-items');
   const count = document.getElementById('bill-count');
@@ -313,41 +417,142 @@ function showBillSummary() {
   openSummaryModal(barName, total, gbp, eur);
 }
 
+// ===== BILL PAID / CONFIRM =====
+function openBillPaidModal() {
+  if (AppState.bill.length === 0) { showToast('Add items to your bill first', 'error'); return; }
+  document.getElementById('bill-paid-comment').value = '';
+  document.getElementById('bill-paid-filename').textContent = '';
+  document.getElementById('bill-paid-photo-data').value = '';
+  const total = AppState.bill.reduce((s, i) => s + i.price * i.qty, 0);
+  const gbp = (total / AppState.exchangeRates.GBP_TRY).toFixed(2);
+  document.getElementById('bill-paid-total').textContent = `₺${total} (≈ £${gbp})`;
+  document.getElementById('bill-paid-bar').textContent = AppState.selectedBar ? AppState.selectedBar.name : 'Unknown Bar';
+  document.getElementById('bill-paid-items-count').textContent = AppState.bill.reduce((s,i)=>s+i.qty, 0);
+  document.getElementById('modal-bill-paid').classList.add('open');
+}
 
-// ===== MIXER MODAL =====
-function openMixerModal(spirit) {
-  const modal = document.getElementById('modal-mixer');
-  const bar = AppState.selectedBar;
-  const mixers = (bar ? bar.menu.mixers : DEFAULT_PRICES.mixers) || [];
-  document.getElementById('mixer-spirit-name').textContent = spirit.name;
-  document.getElementById('mixer-spirit-price').textContent = `₺${spirit.price}`;
-
-  const list = document.getElementById('mixer-list');
-  list.innerHTML = '';
-  mixers.forEach(mixer => {
-    const btn = document.createElement('button');
-    btn.style.cssText = 'width:100%;padding:12px 16px;background:var(--dark3);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;text-align:left;font-family:inherit;margin-bottom:8px;display:flex;justify-content:space-between;transition:all 0.2s;';
-    btn.innerHTML = `<span>${mixer.name}</span><span style="color:var(--primary)">+ ₺${mixer.price}</span>`;
-    btn.onmouseover = () => { btn.style.borderColor = 'var(--primary)'; btn.style.background = 'rgba(0,201,255,0.08)'; };
-    btn.onmouseout = () => { btn.style.borderColor = 'var(--card-border)'; btn.style.background = 'var(--dark3)'; };
-    btn.onclick = () => {
-      addItemToBill({ name: `${spirit.name} & ${mixer.name}`, price: spirit.price + mixer.price, qty: 1 });
-      closeModal('modal-mixer');
+function handleBillPhotoUpload(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    document.getElementById('bill-paid-filename').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('bill-paid-photo-data').value = e.target.result;
     };
-    list.appendChild(btn);
-  });
+    reader.readAsDataURL(file);
+    showToast('Bill photo added! 📸', 'success');
+  }
+}
 
-  // No mixer option
-  const noMixerBtn = document.createElement('button');
-  noMixerBtn.style.cssText = 'width:100%;padding:12px 16px;background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.3);border-radius:10px;color:#ff6b35;font-size:0.9rem;cursor:pointer;font-family:inherit;';
-  noMixerBtn.textContent = 'No mixer — just the shot';
-  noMixerBtn.onclick = () => {
-    addItemToBill({ name: spirit.name, price: spirit.price, qty: 1 });
-    closeModal('modal-mixer');
+function confirmBillPaid() {
+  const comment = document.getElementById('bill-paid-comment').value.trim();
+  const photoData = document.getElementById('bill-paid-photo-data').value;
+  const total = AppState.bill.reduce((s, i) => s + i.price * i.qty, 0);
+  const gbpRate = AppState.exchangeRates.GBP_TRY;
+
+  const billRecord = {
+    id: Date.now(),
+    barName: AppState.selectedBar ? AppState.selectedBar.name : 'Unknown Bar',
+    barId: AppState.selectedBar ? AppState.selectedBar.id : null,
+    items: [...AppState.bill],
+    totalTRY: total,
+    totalGBP: (total / gbpRate).toFixed(2),
+    comment: comment,
+    photo: photoData || null,
+    date: new Date().toISOString(),
+    userId: AppState.user ? AppState.user.id : null,
+    userName: AppState.user ? AppState.user.name : 'Guest'
   };
-  list.appendChild(noMixerBtn);
 
-  modal.classList.add('open');
+  AppState.billHistory.unshift(billRecord);
+  localStorage.setItem('ssm_bill_history', JSON.stringify(AppState.billHistory));
+
+  // Update bill count
+  const count = parseInt(localStorage.getItem('ssm_bill_count') || '0') + 1;
+  localStorage.setItem('ssm_bill_count', String(count));
+
+  // Clear current bill
+  AppState.bill = [];
+  renderBill();
+  closeModal('modal-bill-paid');
+  showToast('Bill saved to history! ✅', 'success');
+}
+
+
+// ===== BILL HISTORY =====
+function initBillHistoryPage() {
+  const list = document.getElementById('bill-history-list');
+  list.innerHTML = '';
+  const history = AppState.billHistory;
+
+  if (history.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🧾</div><h3>No bills yet</h3><p>Once you confirm a paid bill, it'll show here for you and others to compare.</p></div>`;
+    return;
+  }
+
+  history.forEach(bill => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    const date = new Date(bill.date).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const itemCount = bill.items.reduce((s,i)=>s+i.qty, 0);
+    card.innerHTML = `
+      <div class="history-card-header">
+        <div>
+          <div class="history-bar-name">${bill.barName}</div>
+          <div class="history-date">${date} • ${itemCount} items • by ${bill.userName}</div>
+        </div>
+        <div class="history-total">₺${bill.totalTRY}<br><span style="font-size:0.75rem;color:var(--success)">£${bill.totalGBP}</span></div>
+      </div>
+      <div class="history-items">
+        ${bill.items.map(i => `<span class="history-item-tag">${i.name} x${i.qty} — ₺${i.price*i.qty}</span>`).join('')}
+      </div>
+      ${bill.comment ? `<div class="history-comment">💬 "${bill.comment}"</div>` : ''}
+      ${bill.photo ? `<div class="history-photo-wrap"><img src="${bill.photo}" class="history-photo" onclick="openPhotoViewer('${bill.photo}')" alt="Bill photo"></div>` : ''}
+    `;
+    list.appendChild(card);
+  });
+}
+
+function openPhotoViewer(src) {
+  const viewer = document.createElement('div');
+  viewer.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+  viewer.innerHTML = `<img src="${src}" style="max-width:100%;max-height:90vh;border-radius:12px;">`;
+  viewer.onclick = () => viewer.remove();
+  document.body.appendChild(viewer);
+}
+
+// ===== ADD BAR MODAL (enhanced with location for map) =====
+function openAddBarModal() {
+  document.getElementById('new-bar-name').value = '';
+  document.getElementById('new-bar-location').value = '';
+  document.getElementById('new-bar-type').value = 'bar';
+  document.getElementById('modal-add-bar').classList.add('open');
+}
+
+function saveNewBar() {
+  const name = document.getElementById('new-bar-name').value.trim();
+  const location = document.getElementById('new-bar-location').value.trim();
+  const type = document.getElementById('new-bar-type').value;
+  if (!name || !location) { showToast('Please enter bar name and location', 'error'); return; }
+  const newBar = {
+    id: 'custom_' + Date.now(),
+    name, location, type,
+    image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&q=80',
+    rating: 0, thumbsUp: 0, thumbsDown: 0,
+    priceRange: '££',
+    description: `Added by ${AppState.user ? AppState.user.name : 'Guest'}`,
+    addedBy: AppState.user ? AppState.user.name : 'Guest',
+    menu: JSON.parse(JSON.stringify(DEFAULT_PRICES))
+  };
+  AppState.customBars.push(newBar);
+  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
+  populateBarDropdown();
+  AppState.selectedBar = newBar;
+  document.getElementById('bar-select').value = newBar.id;
+  renderDrinkGrid(AppState.currentCategory);
+  updateMapHeader();
+  closeModal('modal-add-bar');
+  showToast(`${name} added! All users can now see this bar 🎉`, 'success');
 }
 
 // ===== CUSTOM ITEM MODAL =====
@@ -362,38 +567,10 @@ function addCustomItem() {
   const name = document.getElementById('custom-item-name').value.trim();
   const price = parseInt(document.getElementById('custom-item-price').value);
   if (!name || !price || price < 1) { showToast('Please enter a valid name and price', 'error'); return; }
+  const barId = AppState.selectedBar ? AppState.selectedBar.id : 'default';
+  saveCrowdPrice(barId, name, price);
   addItemToBill({ name, price, qty: 1 });
   closeModal('modal-custom-item');
-}
-
-// ===== ADD NEW BAR MODAL =====
-function openAddBarModal() {
-  document.getElementById('new-bar-name').value = '';
-  document.getElementById('new-bar-location').value = '';
-  document.getElementById('modal-add-bar').classList.add('open');
-}
-
-function saveNewBar() {
-  const name = document.getElementById('new-bar-name').value.trim();
-  const location = document.getElementById('new-bar-location').value.trim();
-  if (!name || !location) { showToast('Please enter bar name and location', 'error'); return; }
-  const newBar = {
-    id: 'custom_' + Date.now(),
-    name, location,
-    type: 'bar',
-    image: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&q=80',
-    rating: 0, thumbsUp: 0, thumbsDown: 0,
-    priceRange: '££',
-    description: 'User-added venue',
-    menu: JSON.parse(JSON.stringify(DEFAULT_PRICES))
-  };
-  AppState.customBars.push(newBar);
-  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
-  populateBarDropdown();
-  AppState.selectedBar = newBar;
-  document.getElementById('bar-select').value = newBar.id;
-  closeModal('modal-add-bar');
-  showToast(`${name} added! 🎉`, 'success');
 }
 
 // ===== BILL SUMMARY MODAL =====
@@ -406,19 +583,12 @@ function openSummaryModal(barName, total, gbp, eur) {
   document.getElementById('modal-summary').classList.add('open');
 }
 
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-function closeAllModals() {
-  document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeAllModals() { document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); }
 
 
 // ===== TOP 10 BARS =====
-function initTop10Page() {
-  renderTop10(AppState.top10Filter, AppState.top10Limit);
-}
+function initTop10Page() { renderTop10(AppState.top10Filter, AppState.top10Limit); }
 
 function setTop10Filter(filter, limit) {
   AppState.top10Filter = filter;
@@ -432,27 +602,14 @@ function renderTop10(filter, limit) {
   const list = document.getElementById('bars-list');
   list.innerHTML = '';
   let bars = [...BARS_DATA, ...AppState.customBars];
-
-  // Filter
   if (filter === 'bars') bars = bars.filter(b => b.type === 'bar');
   else if (filter === 'restaurants') bars = bars.filter(b => b.type === 'restaurant');
-
-  // Apply stored votes
   bars = bars.map(bar => {
     const v = AppState.votes[bar.id];
-    if (v) {
-      return { ...bar, thumbsUp: bar.thumbsUp + (v === 'up' ? 1 : 0), thumbsDown: bar.thumbsDown + (v === 'down' ? 1 : 0) };
-    }
+    if (v) return { ...bar, thumbsUp: bar.thumbsUp + (v === 'up' ? 1 : 0), thumbsDown: bar.thumbsDown + (v === 'down' ? 1 : 0) };
     return bar;
   });
-
-  // Sort by ratio
-  bars.sort((a, b) => {
-    const scoreA = a.thumbsUp - a.thumbsDown;
-    const scoreB = b.thumbsUp - b.thumbsDown;
-    return scoreB - scoreA;
-  });
-
+  bars.sort((a, b) => (b.thumbsUp - b.thumbsDown) - (a.thumbsUp - a.thumbsDown));
   bars = bars.slice(0, limit || 10);
 
   bars.forEach((bar, idx) => {
@@ -462,7 +619,6 @@ function renderTop10(filter, limit) {
     const typeClass = bar.type === 'restaurant' ? 'type-restaurant' : 'type-bar';
     const typeLabel = bar.type === 'restaurant' ? '🍽 Restaurant' : '🍹 Bar';
     const voted = AppState.votes[bar.id];
-
     card.innerHTML = `
       <div class="bar-card-img-wrap">
         <img class="bar-card-image" src="${bar.image}" alt="${bar.name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=400&q=80'">
@@ -470,57 +626,36 @@ function renderTop10(filter, limit) {
       </div>
       <div class="bar-card-body">
         <div class="bar-card-top">
-          <div>
-            <div class="bar-card-name">${bar.name}</div>
-            <div class="bar-card-loc">📍 ${bar.location}</div>
-          </div>
+          <div><div class="bar-card-name">${bar.name}</div><div class="bar-card-loc">📍 ${bar.location}</div></div>
           <span class="bar-card-type ${typeClass}">${typeLabel}</span>
         </div>
         <div class="bar-card-desc">${bar.description || ''}</div>
         <div class="bar-card-footer">
-          <div class="bar-stars">
-            <span class="stars-display">${stars}</span>
-            <span style="color:var(--text-muted)">${bar.rating ? bar.rating.toFixed(1) : 'No rating'}</span>
-          </div>
+          <div class="bar-stars"><span class="stars-display">${stars}</span><span style="color:var(--text-muted)">${bar.rating ? bar.rating.toFixed(1) : 'N/A'}</span></div>
           <div class="bar-vote-btns">
-            <button class="vote-btn up ${voted === 'up' ? 'voted' : ''}" onclick="vote(${bar.id}, 'up', this)">
-              👍 <span id="up-${bar.id}">${bar.thumbsUp}</span>
-            </button>
-            <button class="vote-btn down ${voted === 'down' ? 'voted' : ''}" onclick="vote(${bar.id}, 'down', this)">
-              👎 <span id="down-${bar.id}">${bar.thumbsDown}</span>
-            </button>
+            <button class="vote-btn up ${voted==='up'?'voted':''}" onclick="vote(${bar.id},'up',this)">👍 <span>${bar.thumbsUp}</span></button>
+            <button class="vote-btn down ${voted==='down'?'voted':''}" onclick="vote(${bar.id},'down',this)">👎 <span>${bar.thumbsDown}</span></button>
           </div>
         </div>
-      </div>
-    `;
+      </div>`;
     list.appendChild(card);
   });
 }
 
 function vote(barId, dir, btn) {
-  if (!AppState.user) {
-    showToast('Please sign in to vote', 'error');
-    showPage('auth');
-    return;
-  }
+  if (!AppState.user) { showToast('Please sign in to vote', 'error'); showPage('auth'); return; }
   const prev = AppState.votes[barId];
-  if (prev === dir) {
-    // Un-vote
-    delete AppState.votes[barId];
-    btn.classList.remove('voted');
-  } else {
-    AppState.votes[barId] = dir;
-  }
+  if (prev === dir) { delete AppState.votes[barId]; btn.classList.remove('voted'); }
+  else { AppState.votes[barId] = dir; }
   localStorage.setItem('ssm_votes', JSON.stringify(AppState.votes));
   renderTop10(AppState.top10Filter, AppState.top10Limit);
-  showToast(dir === 'up' ? 'Thanks for the 👍!' : 'Thanks for the feedback 👎', 'info');
+  showToast(dir === 'up' ? 'Thanks! 👍' : 'Thanks for feedback 👎', 'info');
 }
 
 function getStarsHTML(rating) {
   const full = Math.floor(rating);
   const half = rating % 1 >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  return '⭐'.repeat(full) + (half ? '✨' : '') + '☆'.repeat(empty);
+  return '⭐'.repeat(full) + (half ? '✨' : '') + '☆'.repeat(5 - full - half);
 }
 
 
@@ -528,13 +663,11 @@ function getStarsHTML(rating) {
 async function initCurrencyPage() {
   await fetchExchangeRates();
   updateRateDisplay();
-  calcGBP();
-  calcEUR();
+  calcGBP(); calcEUR();
 }
 
 async function fetchExchangeRates() {
   try {
-    // Try to fetch live rates
     const res = await fetch('https://api.exchangerate-api.com/v4/latest/GBP');
     if (res.ok) {
       const data = await res.json();
@@ -542,56 +675,21 @@ async function fetchExchangeRates() {
       AppState.exchangeRates.EUR_TRY = parseFloat((data.rates.TRY / data.rates.EUR).toFixed(2));
       AppState.ratesLastUpdated = new Date();
     }
-  } catch (e) {
-    // Use fallback rates already set
-    console.log('Using cached rates');
-  }
+  } catch (e) { console.log('Using cached rates'); }
 }
 
 function updateRateDisplay() {
   const r = AppState.exchangeRates;
   document.getElementById('rate-gbp-try').textContent = `£1 = ₺${r.GBP_TRY}`;
   document.getElementById('rate-eur-try').textContent = `€1 = ₺${r.EUR_TRY}`;
-  const updated = AppState.ratesLastUpdated;
-  document.getElementById('rate-updated').textContent = updated
-    ? `Updated: ${updated.toLocaleTimeString()}`
-    : 'Using estimated rates';
+  document.getElementById('rate-updated').textContent = AppState.ratesLastUpdated ? `Updated: ${AppState.ratesLastUpdated.toLocaleTimeString()}` : 'Using estimated rates';
 }
 
-function calcGBP() {
-  const val = parseFloat(document.getElementById('gbp-input').value) || 0;
-  const result = (val * AppState.exchangeRates.GBP_TRY).toFixed(0);
-  document.getElementById('gbp-result').textContent = `₺${Number(result).toLocaleString()}`;
-  document.getElementById('gbp-rate-note').textContent = `at ₺${AppState.exchangeRates.GBP_TRY} per £1`;
-}
-
-function calcEUR() {
-  const val = parseFloat(document.getElementById('eur-input').value) || 0;
-  const result = (val * AppState.exchangeRates.EUR_TRY).toFixed(0);
-  document.getElementById('eur-result').textContent = `₺${Number(result).toLocaleString()}`;
-  document.getElementById('eur-rate-note').textContent = `at ₺${AppState.exchangeRates.EUR_TRY} per €1`;
-}
-
-function calcTRYtoGBP() {
-  const val = parseFloat(document.getElementById('try-gbp-input').value) || 0;
-  const result = (val / AppState.exchangeRates.GBP_TRY).toFixed(2);
-  document.getElementById('try-gbp-result').textContent = `£${result}`;
-}
-
-function calcTRYtoEUR() {
-  const val = parseFloat(document.getElementById('try-eur-input').value) || 0;
-  const result = (val / AppState.exchangeRates.EUR_TRY).toFixed(2);
-  document.getElementById('try-eur-result').textContent = `€${result}`;
-}
-
-function setQuickAmount(inputId, amount) {
-  document.getElementById(inputId).value = amount;
-  if (inputId === 'gbp-input') calcGBP();
-  else if (inputId === 'eur-input') calcEUR();
-  else if (inputId === 'try-gbp-input') calcTRYtoGBP();
-  else if (inputId === 'try-eur-input') calcTRYtoEUR();
-}
-
+function calcGBP() { const v=parseFloat(document.getElementById('gbp-input').value)||0; document.getElementById('gbp-result').textContent=`₺${Math.round(v*AppState.exchangeRates.GBP_TRY).toLocaleString()}`; document.getElementById('gbp-rate-note').textContent=`at ₺${AppState.exchangeRates.GBP_TRY} per £1`; }
+function calcEUR() { const v=parseFloat(document.getElementById('eur-input').value)||0; document.getElementById('eur-result').textContent=`₺${Math.round(v*AppState.exchangeRates.EUR_TRY).toLocaleString()}`; document.getElementById('eur-rate-note').textContent=`at ₺${AppState.exchangeRates.EUR_TRY} per €1`; }
+function calcTRYtoGBP() { const v=parseFloat(document.getElementById('try-gbp-input').value)||0; document.getElementById('try-gbp-result').textContent=`£${(v/AppState.exchangeRates.GBP_TRY).toFixed(2)}`; }
+function calcTRYtoEUR() { const v=parseFloat(document.getElementById('try-eur-input').value)||0; document.getElementById('try-eur-result').textContent=`€${(v/AppState.exchangeRates.EUR_TRY).toFixed(2)}`; }
+function setQuickAmount(id,amt) { document.getElementById(id).value=amt; if(id==='gbp-input')calcGBP(); else if(id==='eur-input')calcEUR(); else if(id==='try-gbp-input')calcTRYtoGBP(); else if(id==='try-eur-input')calcTRYtoEUR(); }
 
 // ===== REVIEW SYSTEM =====
 function openReviewModal(barId) {
@@ -601,29 +699,14 @@ function openReviewModal(barId) {
   document.querySelectorAll('.star-pick').forEach(s => s.classList.remove('active'));
   document.getElementById('modal-review').classList.add('open');
 }
-
-function setReviewStar(n) {
-  document.querySelectorAll('.star-pick').forEach((s, i) => {
-    s.classList.toggle('active', i < n);
-  });
-  document.getElementById('review-rating').value = n;
-}
-
+function setReviewStar(n) { document.querySelectorAll('.star-pick').forEach((s,i) => s.classList.toggle('active', i<n)); document.getElementById('review-rating').value=n; }
 function submitReview() {
-  const barId = document.getElementById('review-bar-id').value;
-  const rating = parseInt(document.getElementById('review-rating').value) || 0;
-  const text = document.getElementById('review-text').value.trim();
-  if (rating === 0) { showToast('Please select a star rating', 'error'); return; }
-  
-  const reviews = JSON.parse(localStorage.getItem('ssm_reviews') || '[]');
-  reviews.push({
-    barId, rating, text,
-    userId: AppState.user.id, userName: AppState.user.name,
-    date: new Date().toISOString()
-  });
-  localStorage.setItem('ssm_reviews', JSON.stringify(reviews));
-  closeModal('modal-review');
-  showToast(`Thanks for your review! ⭐`, 'success');
+  const barId=document.getElementById('review-bar-id').value; const rating=parseInt(document.getElementById('review-rating').value)||0; const text=document.getElementById('review-text').value.trim();
+  if(rating===0){showToast('Please select a star rating','error');return;}
+  const reviews=JSON.parse(localStorage.getItem('ssm_reviews')||'[]');
+  reviews.push({barId,rating,text,userId:AppState.user.id,userName:AppState.user.name,date:new Date().toISOString()});
+  localStorage.setItem('ssm_reviews',JSON.stringify(reviews));
+  closeModal('modal-review'); showToast('Thanks for your review! ⭐','success');
 }
 
 // ===== PROFILE =====
@@ -632,14 +715,11 @@ function initProfilePage() {
   document.getElementById('profile-name').textContent = AppState.user.name;
   document.getElementById('profile-email').textContent = AppState.user.email;
   document.getElementById('profile-initial').textContent = AppState.user.name.charAt(0).toUpperCase();
-  
   const reviews = JSON.parse(localStorage.getItem('ssm_reviews') || '[]');
   const userReviews = reviews.filter(r => r.userId === AppState.user.id);
-  const savedBars = Object.keys(AppState.votes).length;
-  
   document.getElementById('stat-reviews').textContent = userReviews.length;
-  document.getElementById('stat-saved').textContent = savedBars;
-  document.getElementById('stat-bills').textContent = localStorage.getItem('ssm_bill_count') || '0';
+  document.getElementById('stat-saved').textContent = Object.keys(AppState.votes).length;
+  document.getElementById('stat-bills').textContent = AppState.billHistory.length;
 }
 
 // ===== ADMIN PAGE =====
@@ -647,80 +727,138 @@ function initAdminPage() {
   const allBars = getAllBars();
   const reviews = JSON.parse(localStorage.getItem('ssm_reviews') || '[]');
   const users = JSON.parse(localStorage.getItem('ssm_users') || '[]');
-  
   document.getElementById('admin-total-bars').textContent = allBars.length;
   document.getElementById('admin-total-reviews').textContent = reviews.length;
   document.getElementById('admin-total-users').textContent = users.length;
   document.getElementById('admin-custom-bars').textContent = AppState.customBars.length;
-  
   const list = document.getElementById('admin-bar-list');
   list.innerHTML = '';
   allBars.forEach(bar => {
     const row = document.createElement('div');
     row.className = 'admin-bar-row';
-    row.innerHTML = `
-      <div class="admin-bar-info">
-        <div class="admin-bar-name">${bar.name}</div>
-        <div class="admin-bar-meta">${bar.location} • ${bar.type}</div>
-      </div>
-      <div class="admin-bar-actions">
-        <button class="admin-btn edit" onclick="showToast('Edit: ${bar.name}', 'info')">Edit</button>
-        ${String(bar.id).startsWith('custom_') ? `<button class="admin-btn del" onclick="deleteCustomBar('${bar.id}')">Del</button>` : ''}
-      </div>
-    `;
+    row.innerHTML = `<div class="admin-bar-info"><div class="admin-bar-name">${bar.name}</div><div class="admin-bar-meta">${bar.location} • ${bar.type}${bar.addedBy ? ' • Added by '+bar.addedBy : ''}</div></div>
+      <div class="admin-bar-actions"><button class="admin-btn edit" onclick="showToast('Edit: ${bar.name}','info')">Edit</button>${String(bar.id).startsWith('custom_')?`<button class="admin-btn del" onclick="deleteCustomBar('${bar.id}')">Del</button>`:''}</div>`;
     list.appendChild(row);
   });
 }
+function deleteCustomBar(id) { if(!confirm('Delete this bar?'))return; AppState.customBars=AppState.customBars.filter(b=>b.id!==id); localStorage.setItem('ssm_custom_bars',JSON.stringify(AppState.customBars)); initAdminPage(); showToast('Bar removed','info'); }
 
-function deleteCustomBar(id) {
-  if (!confirm('Delete this bar?')) return;
-  AppState.customBars = AppState.customBars.filter(b => b.id !== id);
-  localStorage.setItem('ssm_custom_bars', JSON.stringify(AppState.customBars));
-  initAdminPage();
-  showToast('Bar removed', 'info');
-}
-
-// ===== MENU SCAN (SIMULATED AI) =====
-function openScanModal() {
-  document.getElementById('modal-scan').classList.add('open');
-}
-
-function handleScanUpload(input) {
-  if (input.files && input.files[0]) {
-    AppState.scanFile = input.files[0];
-    document.getElementById('scan-filename').textContent = input.files[0].name;
-    document.getElementById('scan-process-btn').style.display = 'block';
-    showToast('Menu photo selected!', 'success');
-  }
-}
-
+// ===== MENU SCAN =====
+function openScanModal() { document.getElementById('modal-scan').classList.add('open'); }
+function handleScanUpload(input) { if(input.files&&input.files[0]){AppState.scanFile=input.files[0];document.getElementById('scan-filename').textContent=input.files[0].name;document.getElementById('scan-process-btn').style.display='block';showToast('Menu photo selected!','success');} }
 function processScanImage() {
-  // Simulated AI processing
-  const scanResult = document.getElementById('scan-result');
-  scanResult.innerHTML = '<div class="loading"><div class="spinner"></div>Analysing menu...</div>';
-  
-  setTimeout(() => {
-    // Simulate menu detection
-    const detectedItems = [
-      { name: "Mojito", price: 280 },
-      { name: "Vodka Shot", price: 120 },
-      { name: "Efes Beer", price: 160 },
-      { name: "Long Island", price: 340 }
-    ];
-    
-    scanResult.innerHTML = '<h4 style="margin-bottom:10px;color:var(--success)">✅ Detected Prices:</h4>';
-    detectedItems.forEach(item => {
-      scanResult.innerHTML += `
-        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--dark3);border-radius:8px;margin-bottom:6px;">
-          <span>${item.name}</span>
-          <span style="color:var(--primary)">₺${item.price}</span>
-        </div>
-      `;
-    });
-    scanResult.innerHTML += '<p style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;">These are estimated prices based on similar menus. Edit as needed.</p>';
-    showToast('Menu analysed! 📸', 'success');
-  }, 2500);
+  const scanResult=document.getElementById('scan-result');
+  scanResult.innerHTML='<div class="loading"><div class="spinner"></div>Analysing menu...</div>';
+  setTimeout(()=>{
+    const items=[{name:"Mojito",price:280},{name:"Vodka Shot",price:120},{name:"Efes Beer",price:160},{name:"Long Island",price:340}];
+    scanResult.innerHTML='<h4 style="margin-bottom:10px;color:var(--success)">✅ Detected Prices:</h4>';
+    items.forEach(item=>{scanResult.innerHTML+=`<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--dark3);border-radius:8px;margin-bottom:6px;"><span>${item.name}</span><span style="color:var(--primary)">₺${item.price}</span></div>`;});
+    scanResult.innerHTML+='<p style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;">Prices are estimates. You can edit when adding to bill.</p>';
+    showToast('Menu analysed! 📸','success');
+  },2500);
 }
+
+
+// ===== QUICK SHOT BUTTON =====
+function openQuickShotModal() {
+  document.getElementById('quick-shot-price').value = '';
+  document.getElementById('quick-shot-name').value = 'Shot';
+  document.getElementById('modal-quick-shot').classList.add('open');
+}
+
+function addQuickShot() {
+  const name = document.getElementById('quick-shot-name').value.trim() || 'Shot';
+  const price = parseInt(document.getElementById('quick-shot-price').value);
+  if (!price || price < 1) { showToast('Enter the shot price', 'error'); return; }
+  const barId = AppState.selectedBar ? AppState.selectedBar.id : 'default';
+  saveCrowdPrice(barId, name, price);
+  addItemToBill({ name, price, qty: 1 });
+  closeModal('modal-quick-shot');
+  playSound('add');
+}
+
+// ===== SOUND EFFECTS =====
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playSound(type) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    switch(type) {
+      case 'intro':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, ctx.currentTime); // C5
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.15); // E5
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.3); // G5
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.6);
+        break;
+      case 'click':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.08);
+        break;
+      case 'add':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+        break;
+      case 'success':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, ctx.currentTime);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2);
+        osc.frequency.setValueAtTime(1047, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+        break;
+      case 'error':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.setValueAtTime(150, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+        break;
+      case 'paid':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(392, ctx.currentTime);
+        osc.frequency.setValueAtTime(523, ctx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.3);
+        osc.frequency.setValueAtTime(784, ctx.currentTime + 0.45);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.7);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.7);
+        break;
+    }
+  } catch(e) { /* Audio not supported */ }
+}
+
+// Override showToast to add sounds
+const _origShowToast = showToast;
 
 
 // ===== UTILITY FUNCTIONS =====
@@ -733,10 +871,14 @@ function showToast(msg, type = 'info') {
   document.body.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('show'));
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2500);
+  // Play sound based on toast type
+  if (type === 'success') playSound('add');
+  else if (type === 'error') playSound('error');
 }
 
 function handleUserBtnClick() {
-  if (AppState.user) showPage('profile');
+  playSound('click');
+  if (AppState.user) { showPage('profile'); initProfilePage(); }
   else showPage('auth');
 }
 
@@ -745,36 +887,43 @@ function showAuthTab(tab) {
   document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   event.target.classList.add('active');
+  playSound('click');
 }
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initIntro();
-  
-  // Set up navigation
+
+  // Play intro sound after user interaction
+  document.getElementById('page-intro').addEventListener('click', () => playSound('intro'), { once: true });
+  // Also try on first touch
+  document.addEventListener('touchstart', () => { playSound('intro'); }, { once: true });
+
+  // Navigation with sounds
   document.getElementById('btn-bill').addEventListener('click', () => {
+    playSound('click');
     showPage('bill');
     initBillPage();
   });
   document.getElementById('btn-top10').addEventListener('click', () => {
+    playSound('click');
     showPage('top10');
     initTop10Page();
   });
   document.getElementById('btn-currency').addEventListener('click', () => {
+    playSound('click');
     showPage('currency');
     initCurrencyPage();
   });
   document.getElementById('menu-user-btn').addEventListener('click', handleUserBtnClick);
-  
+
   // Bar select
-  document.getElementById('bar-select').addEventListener('change', (e) => selectBar(e.target.value));
-  
+  document.getElementById('bar-select').addEventListener('change', (e) => { playSound('click'); selectBar(e.target.value); });
+
   // Close modals on backdrop click
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.classList.remove('open');
-    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
   });
 
   // Handle hash navigation

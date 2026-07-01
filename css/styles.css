@@ -696,3 +696,71 @@ input[type=file] { display:none; }
   body { max-width:480px; margin:0 auto; }
   #page-intro { position:relative; }
 }
+
+
+/* ===== MAP HEADER ===== */
+.bar-map-header {
+  border-bottom:1px solid var(--card-border);
+  background:var(--dark2);
+}
+.map-bar-name {
+  padding:10px 16px 6px;
+  font-size:0.85rem; font-weight:600; color:var(--primary);
+}
+.map-iframe {
+  width:100%; height:140px; border:none;
+  border-bottom:1px solid var(--card-border);
+  filter:brightness(0.85) saturate(0.8);
+}
+
+/* ===== CROWD BADGE ===== */
+.crowd-badge {
+  font-size:0.65rem; color:var(--success); margin-top:4px;
+  opacity:0.8;
+}
+
+/* ===== MIXER BUTTONS ===== */
+.mixer-option-btn {
+  width:100%; padding:12px 16px;
+  background:var(--dark3); border:1px solid var(--card-border);
+  border-radius:10px; color:var(--text); font-size:0.9rem;
+  cursor:pointer; text-align:left; font-family:inherit;
+  margin-bottom:8px; display:flex; justify-content:space-between;
+  transition:all 0.2s;
+}
+.mixer-option-btn:hover { border-color:var(--primary); background:rgba(0,201,255,0.08); }
+.mixer-no-mixer-btn {
+  width:100%; padding:12px 16px;
+  background:rgba(255,107,53,0.1); border:1px solid rgba(255,107,53,0.3);
+  border-radius:10px; color:#ff6b35; font-size:0.9rem;
+  cursor:pointer; font-family:inherit; margin-top:4px;
+}
+.mixer-no-mixer-btn:hover { background:rgba(255,107,53,0.2); }
+
+/* ===== BILL HISTORY ===== */
+.history-card {
+  background:var(--card-bg); border:1px solid var(--card-border);
+  border-radius:var(--radius); padding:16px; margin-bottom:14px;
+}
+.history-card-header {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+}
+.history-bar-name { font-size:1rem; font-weight:700; }
+.history-date { font-size:0.75rem; color:var(--text-muted); margin-top:2px; }
+.history-total { text-align:right; font-size:1.1rem; font-weight:800; color:var(--primary); }
+.history-items { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.history-item-tag {
+  padding:4px 10px; border-radius:20px; font-size:0.7rem;
+  background:var(--dark3); border:1px solid var(--card-border); color:var(--text-muted);
+}
+.history-comment {
+  margin-top:10px; padding:10px 14px;
+  background:rgba(255,215,0,0.06); border:1px solid rgba(255,215,0,0.15);
+  border-radius:8px; font-size:0.82rem; color:rgba(255,215,0,0.9);
+  font-style:italic;
+}
+.history-photo-wrap { margin-top:10px; }
+.history-photo {
+  width:100%; max-height:200px; object-fit:cover;
+  border-radius:8px; cursor:pointer; border:1px solid var(--card-border);
+}

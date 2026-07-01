@@ -14,8 +14,7 @@
 </head>
 <body>
 
-
-  <!-- ==================== INTRO PAGE ==================== -->
+  <!-- INTRO PAGE -->
   <div id="page-intro" class="page active">
     <div class="stars-container" id="stars-container"></div>
     <div class="intro-content">
@@ -27,7 +26,7 @@
     </div>
   </div>
 
-  <!-- ==================== MAIN MENU PAGE ==================== -->
+  <!-- MAIN MENU -->
   <div id="page-menu" class="page">
     <div class="menu-header">
       <div class="menu-logo">🛡️ STAY SAFE</div>
@@ -60,21 +59,25 @@
   </div>
 
 
-  <!-- ==================== BILL SAVER PAGE ==================== -->
+  <!-- BILL SAVER PAGE -->
   <div id="page-bill" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('menu')">←</button>
       <h2>🧾 Bill Saver</h2>
       <div class="page-header-right">
+        <button class="back-btn" onclick="openQuickShotModal()" title="Quick Shot">🥃</button>
         <button class="back-btn" onclick="openScanModal()">📷</button>
       </div>
     </div>
 
     <div class="bill-layout">
+      <!-- Map Header -->
+      <div id="bar-map-header" class="bar-map-header" style="display:none;"></div>
+
       <div class="bill-top">
         <div class="bar-selector">
           <select id="bar-select">
-            <option value="">-- Select a Bar --</option>
+            <option value="">-- Select a Bar / Restaurant --</option>
           </select>
           <button class="add-bar-btn" onclick="openAddBarModal()" title="Add new bar">+</button>
         </div>
@@ -85,7 +88,7 @@
         <button class="cat-btn" data-cat="cocktails" onclick="setActiveCategory('cocktails')">🍸 Cocktails</button>
         <button class="cat-btn" data-cat="beers" onclick="setActiveCategory('beers')">🍺 Beers</button>
         <button class="cat-btn" data-cat="mixers" onclick="setActiveCategory('mixers')">🧊 Mixers</button>
-        <button class="cat-btn" data-cat="softDrinks" onclick="setActiveCategory('softDrinks')">🥤 Soft Drinks</button>
+        <button class="cat-btn" data-cat="softDrinks" onclick="setActiveCategory('softDrinks')">🥤 Soft</button>
       </div>
 
       <div id="drink-grid" class="drink-grid"></div>
@@ -114,13 +117,13 @@
             <span class="bill-total-label">In GBP</span>
             <span class="bill-total-amount bill-gbp" id="bill-total-gbp">≈ £0.00</span>
           </div>
+          <button class="bill-checkout-btn" onclick="openBillPaidModal()">✅ Bill Paid — Confirm & Save</button>
         </div>
       </div>
     </div>
   </div>
 
-
-  <!-- ==================== TOP 10 BARS PAGE ==================== -->
+  <!-- TOP 10 BARS PAGE -->
   <div id="page-top10" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('menu')">←</button>
@@ -135,7 +138,8 @@
     <div class="bars-list" id="bars-list"></div>
   </div>
 
-  <!-- ==================== CURRENCY CONVERTER PAGE ==================== -->
+
+  <!-- CURRENCY CONVERTER PAGE -->
   <div id="page-currency" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('menu')">←</button>
@@ -143,217 +147,164 @@
     </div>
     <div class="currency-body">
       <div class="rate-info-card">
-        <div>
-          <div class="rate-info-label">GBP → TRY</div>
-          <div class="rate-info-value" id="rate-gbp-try">£1 = ₺43.20</div>
-        </div>
-        <div>
-          <div class="rate-info-label">EUR → TRY</div>
-          <div class="rate-info-value" id="rate-eur-try">€1 = ₺36.80</div>
-        </div>
-        <div>
-          <div class="rate-info-time" id="rate-updated">Using estimated rates</div>
-        </div>
+        <div><div class="rate-info-label">GBP → TRY</div><div class="rate-info-value" id="rate-gbp-try">£1 = ₺43.20</div></div>
+        <div><div class="rate-info-label">EUR → TRY</div><div class="rate-info-value" id="rate-eur-try">€1 = ₺36.80</div></div>
+        <div><div class="rate-info-time" id="rate-updated">Using estimated rates</div></div>
       </div>
-
-      <!-- GBP to TRY -->
       <div class="converter-card">
-        <h3>🇬🇧 British Pounds → 🇹🇷 Turkish Lira</h3>
-        <div class="amount-input-wrap">
-          <span class="currency-label">£</span>
-          <input type="number" class="amount-input" id="gbp-input" placeholder="0" oninput="calcGBP()" value="50">
-        </div>
-        <div class="result-display">
-          <span class="result-amount" id="gbp-result">₺2,160</span>
-          <span class="result-rate" id="gbp-rate-note">at ₺43.20 per £1</span>
-        </div>
-        <div class="quick-amounts">
-          <button class="quick-btn" onclick="setQuickAmount('gbp-input',10)">£10</button>
-          <button class="quick-btn" onclick="setQuickAmount('gbp-input',20)">£20</button>
-          <button class="quick-btn" onclick="setQuickAmount('gbp-input',50)">£50</button>
-          <button class="quick-btn" onclick="setQuickAmount('gbp-input',100)">£100</button>
-          <button class="quick-btn" onclick="setQuickAmount('gbp-input',200)">£200</button>
-        </div>
+        <h3>🇬🇧 GBP → 🇹🇷 TRY</h3>
+        <div class="amount-input-wrap"><span class="currency-label">£</span><input type="number" class="amount-input" id="gbp-input" placeholder="0" oninput="calcGBP()" value="50"></div>
+        <div class="result-display"><span class="result-amount" id="gbp-result">₺2,160</span><span class="result-rate" id="gbp-rate-note">at ₺43.20 per £1</span></div>
+        <div class="quick-amounts"><button class="quick-btn" onclick="setQuickAmount('gbp-input',10)">£10</button><button class="quick-btn" onclick="setQuickAmount('gbp-input',20)">£20</button><button class="quick-btn" onclick="setQuickAmount('gbp-input',50)">£50</button><button class="quick-btn" onclick="setQuickAmount('gbp-input',100)">£100</button><button class="quick-btn" onclick="setQuickAmount('gbp-input',200)">£200</button></div>
       </div>
-
-      <!-- EUR to TRY -->
       <div class="converter-card">
-        <h3>🇪🇺 Euros → 🇹🇷 Turkish Lira</h3>
-        <div class="amount-input-wrap">
-          <span class="currency-label">€</span>
-          <input type="number" class="amount-input" id="eur-input" placeholder="0" oninput="calcEUR()" value="50">
-        </div>
-        <div class="result-display">
-          <span class="result-amount" id="eur-result">₺1,840</span>
-          <span class="result-rate" id="eur-rate-note">at ₺36.80 per €1</span>
-        </div>
-        <div class="quick-amounts">
-          <button class="quick-btn" onclick="setQuickAmount('eur-input',10)">€10</button>
-          <button class="quick-btn" onclick="setQuickAmount('eur-input',20)">€20</button>
-          <button class="quick-btn" onclick="setQuickAmount('eur-input',50)">€50</button>
-          <button class="quick-btn" onclick="setQuickAmount('eur-input',100)">€100</button>
-          <button class="quick-btn" onclick="setQuickAmount('eur-input',200)">€200</button>
-        </div>
+        <h3>🇪🇺 EUR → 🇹🇷 TRY</h3>
+        <div class="amount-input-wrap"><span class="currency-label">€</span><input type="number" class="amount-input" id="eur-input" placeholder="0" oninput="calcEUR()" value="50"></div>
+        <div class="result-display"><span class="result-amount" id="eur-result">₺1,840</span><span class="result-rate" id="eur-rate-note">at ₺36.80 per €1</span></div>
+        <div class="quick-amounts"><button class="quick-btn" onclick="setQuickAmount('eur-input',10)">€10</button><button class="quick-btn" onclick="setQuickAmount('eur-input',20)">€20</button><button class="quick-btn" onclick="setQuickAmount('eur-input',50)">€50</button><button class="quick-btn" onclick="setQuickAmount('eur-input',100)">€100</button></div>
       </div>
-
-      <!-- TRY to GBP -->
       <div class="converter-card">
-        <h3>🇹🇷 Turkish Lira → 🇬🇧 British Pounds</h3>
-        <div class="amount-input-wrap">
-          <span class="currency-label">₺</span>
-          <input type="number" class="amount-input" id="try-gbp-input" placeholder="0" oninput="calcTRYtoGBP()" value="500">
-        </div>
-        <div class="result-display">
-          <span class="result-amount" id="try-gbp-result">£11.57</span>
-          <span class="result-rate">Convert your bar bill to GBP</span>
-        </div>
-        <div class="quick-amounts">
-          <button class="quick-btn" onclick="setQuickAmount('try-gbp-input',200)">₺200</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-gbp-input',500)">₺500</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-gbp-input',1000)">₺1000</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-gbp-input',2000)">₺2000</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-gbp-input',5000)">₺5000</button>
-        </div>
+        <h3>🇹🇷 TRY → 🇬🇧 GBP</h3>
+        <div class="amount-input-wrap"><span class="currency-label">₺</span><input type="number" class="amount-input" id="try-gbp-input" placeholder="0" oninput="calcTRYtoGBP()" value="500"></div>
+        <div class="result-display"><span class="result-amount" id="try-gbp-result">£11.57</span><span class="result-rate">Convert your bar bill to GBP</span></div>
+        <div class="quick-amounts"><button class="quick-btn" onclick="setQuickAmount('try-gbp-input',200)">₺200</button><button class="quick-btn" onclick="setQuickAmount('try-gbp-input',500)">₺500</button><button class="quick-btn" onclick="setQuickAmount('try-gbp-input',1000)">₺1000</button><button class="quick-btn" onclick="setQuickAmount('try-gbp-input',2000)">₺2000</button></div>
       </div>
-
-      <!-- TRY to EUR -->
       <div class="converter-card">
-        <h3>🇹🇷 Turkish Lira → 🇪🇺 Euros</h3>
-        <div class="amount-input-wrap">
-          <span class="currency-label">₺</span>
-          <input type="number" class="amount-input" id="try-eur-input" placeholder="0" oninput="calcTRYtoEUR()" value="500">
-        </div>
-        <div class="result-display">
-          <span class="result-amount" id="try-eur-result">€13.59</span>
-          <span class="result-rate">Convert your bar bill to EUR</span>
-        </div>
-        <div class="quick-amounts">
-          <button class="quick-btn" onclick="setQuickAmount('try-eur-input',200)">₺200</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-eur-input',500)">₺500</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-eur-input',1000)">₺1000</button>
-          <button class="quick-btn" onclick="setQuickAmount('try-eur-input',2000)">₺2000</button>
-        </div>
+        <h3>🇹🇷 TRY → 🇪🇺 EUR</h3>
+        <div class="amount-input-wrap"><span class="currency-label">₺</span><input type="number" class="amount-input" id="try-eur-input" placeholder="0" oninput="calcTRYtoEUR()" value="500"></div>
+        <div class="result-display"><span class="result-amount" id="try-eur-result">€13.59</span><span class="result-rate">Convert your bar bill to EUR</span></div>
+        <div class="quick-amounts"><button class="quick-btn" onclick="setQuickAmount('try-eur-input',200)">₺200</button><button class="quick-btn" onclick="setQuickAmount('try-eur-input',500)">₺500</button><button class="quick-btn" onclick="setQuickAmount('try-eur-input',1000)">₺1000</button><button class="quick-btn" onclick="setQuickAmount('try-eur-input',2000)">₺2000</button></div>
       </div>
-
-      <div class="currency-tip">
-        💡 <strong>Tip:</strong> Always check your bill total against this converter before paying. If the amount seems higher than expected, politely query it. Most bars are honest but always keep track!
-      </div>
+      <div class="currency-tip">💡 <strong>Tip:</strong> Always check your bill total against this converter before paying. If the amount seems higher than expected, politely query it.</div>
     </div>
   </div>
 
-
-  <!-- ==================== AUTH PAGE ==================== -->
+  <!-- AUTH PAGE -->
   <div id="page-auth" class="page">
     <div class="auth-card">
       <div class="auth-logo">🛡️ Stay Safe</div>
-      <div class="auth-subtitle">Sign in to save your bars, leave reviews & track bills</div>
+      <div class="auth-subtitle">Sign in to save bars, leave reviews & track bills</div>
       <div class="auth-tabs">
         <button class="auth-tab active" onclick="showAuthTab('login')">Sign In</button>
         <button class="auth-tab" onclick="showAuthTab('register')">Register</button>
       </div>
       <form id="login-form" onsubmit="handleLogin(event)">
-        <input class="auth-input" id="login-email" type="email" placeholder="Email address" autocomplete="email">
-        <input class="auth-input" id="login-pass" type="password" placeholder="Password" autocomplete="current-password">
+        <input class="auth-input" id="login-email" type="email" placeholder="Email address">
+        <input class="auth-input" id="login-pass" type="password" placeholder="Password">
         <button class="auth-btn" type="submit">Sign In</button>
       </form>
       <form id="register-form" style="display:none" onsubmit="handleRegister(event)">
-        <input class="auth-input" id="reg-name" type="text" placeholder="Full Name" autocomplete="name">
-        <input class="auth-input" id="reg-email" type="email" placeholder="Email address" autocomplete="email">
-        <input class="auth-input" id="reg-pass" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password">
+        <input class="auth-input" id="reg-name" type="text" placeholder="Full Name">
+        <input class="auth-input" id="reg-email" type="email" placeholder="Email address">
+        <input class="auth-input" id="reg-pass" type="password" placeholder="Password (min 6 chars)">
         <button class="auth-btn" type="submit">Create Account</button>
       </form>
       <div class="auth-back" onclick="showPage('menu')">← Back to <span>Home</span></div>
     </div>
   </div>
 
-  <!-- ==================== PROFILE PAGE ==================== -->
+
+  <!-- PROFILE PAGE -->
   <div id="page-profile" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('menu')">←</button>
       <h2>My Profile</h2>
-      <div class="page-header-right">
-        <button class="back-btn" style="font-size:0.7rem;width:auto;padding:0 12px;" onclick="logout()">Logout</button>
-      </div>
+      <div class="page-header-right"><button class="back-btn" style="font-size:0.7rem;width:auto;padding:0 12px;" onclick="logout()">Logout</button></div>
     </div>
     <div class="profile-hero">
       <div class="profile-avatar" id="profile-initial">U</div>
       <div class="profile-name" id="profile-name">User</div>
       <div class="profile-email" id="profile-email">user@email.com</div>
       <div class="profile-stats">
-        <div class="stat-item">
-          <div class="stat-val" id="stat-reviews">0</div>
-          <div class="stat-lbl">Reviews</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-val" id="stat-saved">0</div>
-          <div class="stat-lbl">Voted</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-val" id="stat-bills">0</div>
-          <div class="stat-lbl">Bills</div>
-        </div>
+        <div class="stat-item"><div class="stat-val" id="stat-reviews">0</div><div class="stat-lbl">Reviews</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-saved">0</div><div class="stat-lbl">Voted</div></div>
+        <div class="stat-item"><div class="stat-val" id="stat-bills">0</div><div class="stat-lbl">Bills</div></div>
       </div>
     </div>
     <div class="profile-section">
       <h3>Quick Links</h3>
-      <div class="profile-menu-item" onclick="showPage('bill'); initBillPage();">
-        <span class="profile-menu-icon">🧾</span>
-        <span class="profile-menu-text">Bill Saver</span>
-        <span class="profile-menu-arrow">→</span>
-      </div>
-      <div class="profile-menu-item" onclick="showPage('top10'); initTop10Page();">
-        <span class="profile-menu-icon">🏆</span>
-        <span class="profile-menu-text">Top 10 Bars</span>
-        <span class="profile-menu-arrow">→</span>
-      </div>
-      <div class="profile-menu-item" onclick="showPage('admin'); initAdminPage();">
-        <span class="profile-menu-icon">⚙️</span>
-        <span class="profile-menu-text">Admin Panel</span>
-        <span class="profile-menu-arrow">→</span>
-      </div>
+      <div class="profile-menu-item" onclick="showPage('bill'); initBillPage();"><span class="profile-menu-icon">🧾</span><span class="profile-menu-text">Bill Saver</span><span class="profile-menu-arrow">→</span></div>
+      <div class="profile-menu-item" onclick="showPage('history'); initBillHistoryPage();"><span class="profile-menu-icon">📋</span><span class="profile-menu-text">Bill History</span><span class="profile-menu-arrow">→</span></div>
+      <div class="profile-menu-item" onclick="showPage('top10'); initTop10Page();"><span class="profile-menu-icon">🏆</span><span class="profile-menu-text">Top 10 Bars</span><span class="profile-menu-arrow">→</span></div>
+      <div class="profile-menu-item" onclick="showPage('admin'); initAdminPage();"><span class="profile-menu-icon">⚙️</span><span class="profile-menu-text">Admin Panel</span><span class="profile-menu-arrow">→</span></div>
     </div>
   </div>
 
+  <!-- BILL HISTORY PAGE -->
+  <div id="page-history" class="page">
+    <div class="page-header">
+      <button class="back-btn" onclick="showPage('profile'); initProfilePage();">←</button>
+      <h2>📋 Bill History</h2>
+    </div>
+    <div class="bars-list" id="bill-history-list" style="padding:16px;"></div>
+  </div>
 
-  <!-- ==================== ADMIN PAGE ==================== -->
+  <!-- ADMIN PAGE -->
   <div id="page-admin" class="page">
     <div class="page-header">
       <button class="back-btn" onclick="showPage('profile'); initProfilePage();">←</button>
       <h2>⚙️ Admin Panel</h2>
     </div>
     <div class="admin-grid">
-      <div class="admin-stat-card">
-        <div class="admin-stat-val" id="admin-total-bars" style="color:var(--primary)">0</div>
-        <div class="admin-stat-lbl">Total Bars</div>
-      </div>
-      <div class="admin-stat-card">
-        <div class="admin-stat-val" id="admin-total-reviews" style="color:var(--gold)">0</div>
-        <div class="admin-stat-lbl">Reviews</div>
-      </div>
-      <div class="admin-stat-card">
-        <div class="admin-stat-val" id="admin-total-users" style="color:var(--success)">0</div>
-        <div class="admin-stat-lbl">Users</div>
-      </div>
-      <div class="admin-stat-card">
-        <div class="admin-stat-val" id="admin-custom-bars" style="color:var(--secondary)">0</div>
-        <div class="admin-stat-lbl">Custom Bars</div>
-      </div>
+      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-bars" style="color:var(--primary)">0</div><div class="admin-stat-lbl">Total Bars</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-reviews" style="color:var(--gold)">0</div><div class="admin-stat-lbl">Reviews</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-total-users" style="color:var(--success)">0</div><div class="admin-stat-lbl">Users</div></div>
+      <div class="admin-stat-card"><div class="admin-stat-val" id="admin-custom-bars" style="color:var(--secondary)">0</div><div class="admin-stat-lbl">Custom Bars</div></div>
     </div>
-    <div class="admin-section">
-      <h3>All Venues</h3>
-      <div id="admin-bar-list"></div>
+    <div class="admin-section"><h3>All Venues</h3><div id="admin-bar-list"></div></div>
+  </div>
+
+
+  <!-- ===== MODALS ===== -->
+
+  <!-- Price Confirm Modal -->
+  <div class="modal-overlay" id="modal-price-confirm">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>Confirm Price 💰</h3>
+      <p>Check the price is correct for <strong id="price-confirm-name">Item</strong>:</p>
+      <input type="hidden" id="price-confirm-cat">
+      <input type="hidden" id="price-confirm-item-name">
+      <input type="hidden" id="price-confirm-bar-id">
+      <div class="amount-input-wrap" style="margin-bottom:8px;">
+        <span class="currency-label">₺</span>
+        <input type="number" class="amount-input" id="price-confirm-input" placeholder="Price" style="font-size:1.3rem;">
+      </div>
+      <div id="price-confirm-info" style="font-size:0.8rem;margin-bottom:16px;"></div>
+      <button class="modal-btn primary" onclick="confirmAddToBill()">✅ Add to Bill</button>
+      <button class="modal-btn secondary" onclick="closeModal('modal-price-confirm')">Cancel</button>
     </div>
   </div>
 
-  <!-- ==================== MODALS ==================== -->
-
-  <!-- Mixer Modal -->
+  <!-- Mixer Modal (with editable spirit price) -->
   <div class="modal-overlay" id="modal-mixer">
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>Add a mixer? 🧊</h3>
-      <p><span id="mixer-spirit-name">Vodka</span> (<span id="mixer-spirit-price">₺120</span>) — choose a mixer or go neat:</p>
+      <p><span id="mixer-spirit-name">Vodka</span> — edit price if needed:</p>
+      <input type="hidden" id="mixer-spirit-item-name">
+      <input type="hidden" id="mixer-bar-id">
+      <div class="amount-input-wrap" style="margin-bottom:14px;">
+        <span class="currency-label">₺</span>
+        <input type="number" class="amount-input" id="mixer-spirit-price-input" style="font-size:1.2rem;">
+      </div>
       <div id="mixer-list"></div>
+    </div>
+  </div>
+
+  <!-- Quick Shot Modal -->
+  <div class="modal-overlay" id="modal-quick-shot">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>🥃 Quick Shot</h3>
+      <p>Add a shot quickly — just enter the price:</p>
+      <input class="modal-input" id="quick-shot-name" type="text" placeholder="Shot name (e.g. Tequila)" value="Shot">
+      <div class="amount-input-wrap" style="margin-bottom:14px;">
+        <span class="currency-label">₺</span>
+        <input type="number" class="amount-input" id="quick-shot-price" placeholder="Price">
+      </div>
+      <button class="modal-btn primary" onclick="addQuickShot()">🥃 Add Shot to Bill</button>
+      <button class="modal-btn secondary" onclick="closeModal('modal-quick-shot')">Cancel</button>
     </div>
   </div>
 
@@ -364,8 +315,8 @@
       <h3>Add Custom Item</h3>
       <p>Add any drink not on the menu:</p>
       <input type="hidden" id="custom-item-cat" value="spirits">
-      <input class="modal-input" id="custom-item-name" type="text" placeholder="Drink name (e.g. Special Cocktail)">
-      <input class="modal-input" id="custom-item-price" type="number" placeholder="Price in ₺ (e.g. 250)">
+      <input class="modal-input" id="custom-item-name" type="text" placeholder="Drink name">
+      <input class="modal-input" id="custom-item-price" type="number" placeholder="Price in ₺">
       <button class="modal-btn primary" onclick="addCustomItem()">Add to Bill</button>
       <button class="modal-btn secondary" onclick="closeModal('modal-custom-item')">Cancel</button>
     </div>
@@ -376,9 +327,13 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>Add New Bar / Restaurant</h3>
-      <p>Can't find your bar? Add it here:</p>
+      <p>Can't find your bar? Add it for everyone:</p>
       <input class="modal-input" id="new-bar-name" type="text" placeholder="Bar / Restaurant Name">
       <input class="modal-input" id="new-bar-location" type="text" placeholder="Location (e.g. Bar Street, Marmaris)">
+      <select class="modal-input" id="new-bar-type" style="padding:14px 16px;">
+        <option value="bar">🍹 Bar</option>
+        <option value="restaurant">🍽 Restaurant</option>
+      </select>
       <button class="modal-btn primary" onclick="saveNewBar()">Save Bar</button>
       <button class="modal-btn secondary" onclick="closeModal('modal-add-bar')">Cancel</button>
     </div>
@@ -389,17 +344,39 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>📋 Bill Summary</h3>
-      <p>Your estimated bill for <strong id="summary-bar">Unknown Bar</strong>:</p>
+      <p>Estimated bill for <strong id="summary-bar">Unknown Bar</strong>:</p>
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:0.85rem;color:var(--text-muted);">Items: <span id="summary-items">0</span></div>
         <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin:8px 0;" id="summary-try">₺0</div>
         <div style="font-size:1.1rem;color:var(--success);" id="summary-gbp">£0.00</div>
         <div style="font-size:0.9rem;color:var(--text-muted);margin-top:4px;" id="summary-eur">€0.00</div>
       </div>
-      <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:12px;font-size:0.8rem;color:rgba(255,215,0,0.9);margin-bottom:14px;">
-        ⚠️ This is an estimate. Bars may add small service charges. If your actual bill is significantly higher, check each item carefully.
-      </div>
+      <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:12px;font-size:0.8rem;color:rgba(255,215,0,0.9);margin-bottom:14px;">⚠️ This is an estimate. Bars may add small service charges.</div>
       <button class="modal-btn primary" onclick="closeModal('modal-summary')">OK, Got it 👍</button>
+    </div>
+  </div>
+
+  <!-- Bill Paid Modal -->
+  <div class="modal-overlay" id="modal-bill-paid">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h3>✅ Confirm Bill Paid</h3>
+      <p>Save this bill to your history:</p>
+      <div style="background:var(--dark3);border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:var(--text-muted)">Bar:</span><strong id="bill-paid-bar">—</strong></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:var(--text-muted)">Items:</span><strong id="bill-paid-items-count">0</strong></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total:</span><strong id="bill-paid-total" style="color:var(--primary)">₺0</strong></div>
+      </div>
+      <textarea class="review-textarea" id="bill-paid-comment" placeholder="Optional comment... (e.g. Bill matched! or They added extra drinks)"></textarea>
+      <div class="upload-area" onclick="document.getElementById('bill-photo-input').click()">
+        <div>📸</div>
+        <p>Upload photo of actual bill (optional)</p>
+        <p id="bill-paid-filename" style="color:var(--primary);font-size:0.8rem;"></p>
+      </div>
+      <input type="file" id="bill-photo-input" accept="image/*" capture="environment" onchange="handleBillPhotoUpload(this)">
+      <input type="hidden" id="bill-paid-photo-data">
+      <button class="modal-btn primary" onclick="confirmBillPaid(); playSound('paid');">✅ Save to History & Clear Bill</button>
+      <button class="modal-btn secondary" onclick="closeModal('modal-bill-paid')">Cancel</button>
     </div>
   </div>
 
@@ -408,12 +385,8 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>📸 Scan Menu</h3>
-      <p>Take a photo of the bar's menu to automatically detect prices:</p>
-      <div class="upload-area" onclick="document.getElementById('scan-input').click()">
-        <div>📷</div>
-        <p>Tap to select a menu photo</p>
-        <p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p>
-      </div>
+      <p>Take a photo of the bar's menu to detect prices:</p>
+      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div>📷</div><p>Tap to select a menu photo</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
       <input type="file" id="scan-input" accept="image/*" capture="environment" onchange="handleScanUpload(this)">
       <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 Analyse Menu</button>
       <div id="scan-result"></div>
@@ -427,27 +400,14 @@
       <div class="modal-handle"></div>
       <h3>⭐ Leave a Review</h3>
       <p>How was your experience?</p>
-      <input type="hidden" id="review-bar-id">
-      <input type="hidden" id="review-rating" value="0">
-      <div class="star-picker">
-        <span class="star-pick" onclick="setReviewStar(1)">⭐</span>
-        <span class="star-pick" onclick="setReviewStar(2)">⭐</span>
-        <span class="star-pick" onclick="setReviewStar(3)">⭐</span>
-        <span class="star-pick" onclick="setReviewStar(4)">⭐</span>
-        <span class="star-pick" onclick="setReviewStar(5)">⭐</span>
-      </div>
-      <textarea class="review-textarea" id="review-text" placeholder="Tell us about your visit... Did the bill match? Were drinks added?"></textarea>
-      <div class="upload-area" onclick="document.getElementById('receipt-upload').click()">
-        <div>🧾</div>
-        <p>Upload your receipt photo (optional)</p>
-      </div>
-      <input type="file" id="receipt-upload" accept="image/*">
+      <input type="hidden" id="review-bar-id"><input type="hidden" id="review-rating" value="0">
+      <div class="star-picker"><span class="star-pick" onclick="setReviewStar(1)">⭐</span><span class="star-pick" onclick="setReviewStar(2)">⭐</span><span class="star-pick" onclick="setReviewStar(3)">⭐</span><span class="star-pick" onclick="setReviewStar(4)">⭐</span><span class="star-pick" onclick="setReviewStar(5)">⭐</span></div>
+      <textarea class="review-textarea" id="review-text" placeholder="Tell us about your visit..."></textarea>
       <button class="modal-btn primary" onclick="submitReview()">Submit Review</button>
       <button class="modal-btn secondary" onclick="closeModal('modal-review')">Cancel</button>
     </div>
   </div>
 
-  <!-- Scripts -->
   <script src="data/bars.js"></script>
   <script src="js/app.js"></script>
 </body>
