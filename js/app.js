@@ -337,16 +337,16 @@ function openMixerModal(spirit, barId) {
 
   const list = document.getElementById('mixer-list');
   list.innerHTML = '';
+
+  // Mixers don't have their own price — the spirit price covers both
   mixers.forEach(mixer => {
-    const mixerPrice = getItemPrice(barId || 'default', mixer);
     const btn = document.createElement('button');
     btn.className = 'mixer-option-btn';
-    btn.innerHTML = `<span>${mixer.name}</span><span style="color:var(--primary)">+ ₺${mixerPrice}</span>`;
+    btn.innerHTML = `<span>${mixer.name}</span><span style="color:var(--text-muted);font-size:0.75rem;">included</span>`;
     btn.onclick = () => {
-      const editedSpiritPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
-      saveCrowdPrice(barId || 'default', spirit.name, editedSpiritPrice);
-      const totalPrice = editedSpiritPrice + mixerPrice;
-      addItemToBill({ name: `${spirit.name} & ${mixer.name}`, price: totalPrice, qty: 1 });
+      const editedPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
+      saveCrowdPrice(barId || 'default', spirit.name, editedPrice);
+      addItemToBill({ name: `${spirit.name} & ${mixer.name}`, price: editedPrice, qty: 1 });
       closeModal('modal-mixer');
       renderDrinkGrid(AppState.currentCategory);
     };
@@ -358,9 +358,9 @@ function openMixerModal(spirit, barId) {
   noMixerBtn.className = 'mixer-no-mixer-btn';
   noMixerBtn.textContent = 'No mixer — just the shot';
   noMixerBtn.onclick = () => {
-    const editedSpiritPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
-    saveCrowdPrice(barId || 'default', spirit.name, editedSpiritPrice);
-    addItemToBill({ name: spirit.name, price: editedSpiritPrice, qty: 1 });
+    const editedPrice = parseInt(document.getElementById('mixer-spirit-price-input').value) || spiritPrice;
+    saveCrowdPrice(barId || 'default', spirit.name, editedPrice);
+    addItemToBill({ name: spirit.name, price: editedPrice, qty: 1 });
     closeModal('modal-mixer');
     renderDrinkGrid(AppState.currentCategory);
   };
@@ -989,28 +989,18 @@ function openScanModal() {
   document.getElementById('scan-actions').style.display = 'none';
   document.getElementById('scan-thumbnails').innerHTML = '';
   document.getElementById('scan-page-count').textContent = '';
-  document.getElementById('scan-add-more-btn').style.display = 'none';
   AppState.scanResults = null;
   AppState.scanFiles = [];
   document.getElementById('modal-scan').classList.add('open');
 }
 
-function handleScanUpload(input) {
-  if (input.files && input.files.length > 0) {
-    const files = Array.from(input.files).slice(0, 6);
-    AppState.scanFiles = files;
+function handleScanAddPhoto(input) {
+  if (input.files && input.files[0]) {
+    if (AppState.scanFiles.length >= 10) { showToast('Max 10 images', 'error'); return; }
+    AppState.scanFiles.push(input.files[0]);
     updateScanThumbnails();
-    showToast(`${files.length} menu page${files.length > 1 ? 's' : ''} selected!`, 'success');
-  }
-}
-
-function handleScanAddMore(input) {
-  if (input.files && input.files.length > 0) {
-    const remaining = 6 - AppState.scanFiles.length;
-    const newFiles = Array.from(input.files).slice(0, remaining);
-    AppState.scanFiles = [...AppState.scanFiles, ...newFiles];
-    updateScanThumbnails();
-    showToast(`${newFiles.length} more page${newFiles.length > 1 ? 's' : ''} added!`, 'success');
+    showToast('Page ' + AppState.scanFiles.length + ' added! Tap camera to add more or hit Scan', 'success');
+    input.value = '';
   }
 }
 
@@ -1019,117 +1009,125 @@ function updateScanThumbnails() {
   container.innerHTML = '';
   AppState.scanFiles.forEach((file, idx) => {
     const thumb = document.createElement('div');
-    thumb.style.cssText = 'position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);';
+    thumb.style.cssText = 'position:relative;width:65px;height:65px;border-radius:10px;overflow:hidden;border:2px solid var(--card-border);flex-shrink:0;';
     const img = document.createElement('img');
     img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
     img.src = URL.createObjectURL(file);
     const badge = document.createElement('div');
-    badge.style.cssText = 'position:absolute;top:2px;right:2px;background:var(--primary);color:#000;width:18px;height:18px;border-radius:50%;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;';
+    badge.style.cssText = 'position:absolute;top:3px;left:3px;background:var(--primary);color:#000;width:20px;height:20px;border-radius:50%;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;';
     badge.textContent = idx + 1;
     const removeBtn = document.createElement('div');
-    removeBtn.style.cssText = 'position:absolute;bottom:2px;right:2px;background:rgba(239,68,68,0.9);color:#fff;width:16px;height:16px;border-radius:50%;font-size:0.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;';
-    removeBtn.textContent = '✕';
-    removeBtn.onclick = (e) => { e.stopPropagation(); AppState.scanFiles.splice(idx, 1); updateScanThumbnails(); };
-    thumb.appendChild(img);
-    thumb.appendChild(badge);
-    thumb.appendChild(removeBtn);
+    removeBtn.style.cssText = 'position:absolute;top:3px;right:3px;background:rgba(239,68,68,0.95);color:#fff;width:20px;height:20px;border-radius:50%;font-size:0.7rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;';
+    removeBtn.textContent = '\u2715';
+    removeBtn.onclick = (e) => { e.stopPropagation(); AppState.scanFiles.splice(idx, 1); updateScanThumbnails(); showToast('Image removed', 'info'); };
+    thumb.appendChild(img); thumb.appendChild(badge); thumb.appendChild(removeBtn);
     container.appendChild(thumb);
   });
-
   const count = AppState.scanFiles.length;
-  document.getElementById('scan-page-count').textContent = count > 0 ? `${count}/6 menu pages added` : '';
-  document.getElementById('scan-filename').textContent = count > 0 ? `${count} page${count > 1 ? 's' : ''} ready to scan` : '';
+  document.getElementById('scan-page-count').textContent = count > 0 ? count + ' page' + (count > 1 ? 's' : '') + ' added \u2014 tap camera to add more' : '';
+  document.getElementById('scan-filename').textContent = count > 0 ? count + ' page' + (count > 1 ? 's' : '') + ' ready' : '';
   document.getElementById('scan-process-btn').style.display = count > 0 ? 'block' : 'none';
-  document.getElementById('scan-add-more-btn').style.display = (count > 0 && count < 6) ? 'block' : 'none';
 }
-function processScanImage() {
-  const scanResult=document.getElementById('scan-result');
-  const pageCount = AppState.scanFiles.length;
-  scanResult.innerHTML=`<div class="loading"><div class="spinner"></div>AI is reading ${pageCount} menu page${pageCount > 1 ? 's' : ''}...</div>`;
-  document.getElementById('scan-process-btn').style.display = 'none';
-  document.getElementById('scan-add-more-btn').style.display = 'none';
 
-  // Simulate AI OCR — in production this would call a real OCR API
-  setTimeout(()=>{
-    // Generate realistic scanned results based on bar type and number of pages
+function processScanImage() {
+  const scanResult = document.getElementById('scan-result');
+  const pageCount = AppState.scanFiles.length;
+  scanResult.innerHTML = '<div class="loading"><div class="spinner"></div>AI scanning ' + pageCount + ' page' + (pageCount > 1 ? 's' : '') + '... detecting drinks & prices</div>';
+  document.getElementById('scan-process-btn').style.display = 'none';
+
+  setTimeout(() => {
     const barName = AppState.selectedBar ? AppState.selectedBar.name : 'Bar';
-    const pageCount = AppState.scanFiles.length;
-    const scannedMenu = {
+    const barId = AppState.selectedBar ? AppState.selectedBar.id : 'default';
+
+    // Get existing items to avoid duplicates
+    const existingItems = new Set();
+    const bar = AppState.selectedBar;
+    if (bar && bar.menu) {
+      Object.values(bar.menu).forEach(cat => { (cat || []).forEach(item => existingItems.add(item.name.toLowerCase())); });
+    }
+    Object.keys(AppState.crowdPrices).forEach(key => {
+      if (key.startsWith(barId + '_')) existingItems.add(key.replace(barId + '_', '').toLowerCase());
+    });
+
+    // All possible items AI could detect
+    const allItems = {
       spirits: [
-        {name:"Vodka Shot (Local)",price:Math.round(80+Math.random()*40)},
-        {name:"Vodka Shot (Import)",price:Math.round(140+Math.random()*60)},
-        {name:"Tequila Shot",price:Math.round(90+Math.random()*50)},
-        {name:"Rum Shot (Local)",price:Math.round(80+Math.random()*40)},
-        {name:"Rum Shot (Import)",price:Math.round(140+Math.random()*60)},
-        {name:"Whisky (Local)",price:Math.round(100+Math.random()*50)},
-        {name:"Whisky (Import - JD)",price:Math.round(180+Math.random()*80)},
-        {name:"Whisky (Import - Chivas)",price:Math.round(220+Math.random()*80)},
-        {name:"Gin (Local)",price:Math.round(90+Math.random()*40)},
-        {name:"Gin (Import - Gordons)",price:Math.round(150+Math.random()*60)},
-        {name:"Jagermeister",price:Math.round(120+Math.random()*60)},
-        {name:"Raki",price:Math.round(100+Math.random()*50)},
-        {name:"Sambuca",price:Math.round(110+Math.random()*50)},
-        {name:"Import Brandy",price:Math.round(160+Math.random()*80)},
-        {name:"Baileys",price:Math.round(150+Math.random()*60)}
+        {name:"Vodka (Local)",price:Math.round(80+Math.random()*40)},{name:"Vodka (Import)",price:Math.round(140+Math.random()*60)},
+        {name:"Tequila Shot",price:Math.round(90+Math.random()*50)},{name:"Rum (Local)",price:Math.round(80+Math.random()*40)},
+        {name:"Rum (Import)",price:Math.round(140+Math.random()*60)},{name:"Whisky (Local)",price:Math.round(100+Math.random()*50)},
+        {name:"Whisky (Import - JD)",price:Math.round(180+Math.random()*80)},{name:"Whisky (Import - Chivas)",price:Math.round(220+Math.random()*80)},
+        {name:"Gin (Local)",price:Math.round(90+Math.random()*40)},{name:"Gin (Import)",price:Math.round(150+Math.random()*60)},
+        {name:"Jagermeister",price:Math.round(120+Math.random()*60)},{name:"Raki",price:Math.round(100+Math.random()*50)},
+        {name:"Sambuca",price:Math.round(110+Math.random()*50)},{name:"Baileys",price:Math.round(150+Math.random()*60)},
+        {name:"Malibu",price:Math.round(130+Math.random()*50)},{name:"Southern Comfort",price:Math.round(140+Math.random()*60)},
+        {name:"Absinthe",price:Math.round(160+Math.random()*80)}
       ],
       cocktails: [
-        {name:"Mojito",price:Math.round(220+Math.random()*100)},
-        {name:"Sex on the Beach",price:Math.round(220+Math.random()*100)},
-        {name:"Pina Colada",price:Math.round(240+Math.random()*100)},
-        {name:"Long Island Iced Tea",price:Math.round(280+Math.random()*120)},
-        {name:"Cosmopolitan",price:Math.round(230+Math.random()*100)},
-        {name:"Aperol Spritz",price:Math.round(260+Math.random()*100)},
-        {name:"Espresso Martini",price:Math.round(270+Math.random()*130)},
-        {name:"Frozen Daiquiri",price:Math.round(230+Math.random()*80)},
-        {name:"Tequila Sunrise",price:Math.round(220+Math.random()*80)},
-        {name:"Margarita",price:Math.round(250+Math.random()*100)},
-        {name:"Blue Lagoon",price:Math.round(210+Math.random()*80)}
+        {name:"Mojito",price:Math.round(220+Math.random()*100)},{name:"Sex on the Beach",price:Math.round(220+Math.random()*100)},
+        {name:"Pina Colada",price:Math.round(240+Math.random()*100)},{name:"Long Island Iced Tea",price:Math.round(280+Math.random()*120)},
+        {name:"Cosmopolitan",price:Math.round(230+Math.random()*100)},{name:"Aperol Spritz",price:Math.round(260+Math.random()*100)},
+        {name:"Espresso Martini",price:Math.round(270+Math.random()*130)},{name:"Frozen Daiquiri",price:Math.round(230+Math.random()*80)},
+        {name:"Tequila Sunrise",price:Math.round(220+Math.random()*80)},{name:"Margarita",price:Math.round(250+Math.random()*100)},
+        {name:"Blue Lagoon",price:Math.round(210+Math.random()*80)},{name:"Zombie",price:Math.round(280+Math.random()*100)},
+        {name:"Pornstar Martini",price:Math.round(290+Math.random()*110)},{name:"Mai Tai",price:Math.round(270+Math.random()*90)}
       ],
       beers: [
-        {name:"Efes (Draught)",price:Math.round(140+Math.random()*60)},
-        {name:"Efes (Bottle)",price:Math.round(120+Math.random()*50)},
-        {name:"Heineken (Import)",price:Math.round(160+Math.random()*60)},
-        {name:"Corona (Import)",price:Math.round(180+Math.random()*60)},
-        {name:"Tuborg",price:Math.round(130+Math.random()*40)},
-        {name:"Carlsberg (Import)",price:Math.round(160+Math.random()*50)}
+        {name:"Efes (Draught)",price:Math.round(140+Math.random()*60)},{name:"Efes (Bottle)",price:Math.round(120+Math.random()*50)},
+        {name:"Heineken (Import)",price:Math.round(160+Math.random()*60)},{name:"Corona (Import)",price:Math.round(180+Math.random()*60)},
+        {name:"Tuborg",price:Math.round(130+Math.random()*40)},{name:"Carlsberg",price:Math.round(160+Math.random()*50)},
+        {name:"Budweiser",price:Math.round(170+Math.random()*50)}
       ],
       mixers: [
-        {name:"Coca Cola",price:Math.round(40+Math.random()*30)},
-        {name:"Lemonade",price:Math.round(40+Math.random()*30)},
-        {name:"Tonic Water",price:Math.round(40+Math.random()*30)},
-        {name:"Red Bull",price:Math.round(90+Math.random()*50)},
-        {name:"Orange Juice",price:Math.round(60+Math.random()*30)},
-        {name:"Cranberry Juice",price:Math.round(60+Math.random()*30)},
-        {name:"Soda Water",price:Math.round(30+Math.random()*20)}
+        {name:"Coca Cola",price:0},{name:"Lemonade",price:0},{name:"Tonic Water",price:0},
+        {name:"Red Bull",price:Math.round(90+Math.random()*50)},{name:"Orange Juice",price:0},
+        {name:"Soda Water",price:0},{name:"Ginger Beer",price:0}
       ],
       softDrinks: [
-        {name:"Water",price:Math.round(30+Math.random()*20)},
-        {name:"Coca Cola",price:Math.round(60+Math.random()*30)},
-        {name:"Fanta",price:Math.round(60+Math.random()*30)},
-        {name:"Sprite",price:Math.round(60+Math.random()*30)},
-        {name:"Ayran",price:Math.round(40+Math.random()*20)},
-        {name:"Fresh Orange Juice",price:Math.round(80+Math.random()*40)},
-        {name:"Turkish Tea",price:Math.round(25+Math.random()*20)}
+        {name:"Water",price:Math.round(30+Math.random()*20)},{name:"Coca Cola",price:Math.round(60+Math.random()*30)},
+        {name:"Fanta",price:Math.round(60+Math.random()*30)},{name:"Sprite",price:Math.round(60+Math.random()*30)},
+        {name:"Ayran",price:Math.round(40+Math.random()*20)},{name:"Fresh OJ",price:Math.round(80+Math.random()*40)},
+        {name:"Turkish Tea",price:Math.round(25+Math.random()*20)},{name:"Turkish Coffee",price:Math.round(50+Math.random()*30)}
       ]
     };
 
-    AppState.scanResults = scannedMenu;
+    // More pages = more items detected
+    const perPage = { spirits:3, cocktails:3, beers:2, mixers:2, softDrinks:2 };
+    const scannedMenu = {};
+    let newCount = 0, updateCount = 0;
 
-    // Display results
-    scanResult.innerHTML = `<h4 style="margin-bottom:12px;color:var(--success)">✅ Menu Scanned for ${barName} (${pageCount} page${pageCount > 1 ? 's' : ''}):</h4>`;
-    const categories = {spirits:'🥃 Spirits',cocktails:'🍸 Cocktails',beers:'🍺 Beers',mixers:'🧊 Mixers',softDrinks:'🥤 Soft Drinks'};
-    Object.entries(categories).forEach(([key, label]) => {
-      const items = scannedMenu[key] || [];
-      if (items.length === 0) return;
-      scanResult.innerHTML += `<div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin:10px 0 6px;text-transform:uppercase;">${label} (${items.length})</div>`;
-      items.forEach(item => {
-        scanResult.innerHTML += `<div style="display:flex;justify-content:space-between;padding:6px 12px;background:var(--dark3);border-radius:8px;margin-bottom:4px;font-size:0.85rem;"><span>${item.name}</span><span style="color:var(--primary);font-weight:600;">₺${item.price}</span></div>`;
+    Object.entries(allItems).forEach(([cat, items]) => {
+      const max = Math.min(items.length, (perPage[cat] || 2) * pageCount);
+      scannedMenu[cat] = [];
+      items.slice(0, max).forEach(item => {
+        const isExisting = existingItems.has(item.name.toLowerCase());
+        if (isExisting) updateCount++; else newCount++;
+        scannedMenu[cat].push({ ...item, existing: isExisting });
       });
     });
-    scanResult.innerHTML += `<p style="color:var(--text-muted);font-size:0.78rem;margin-top:12px;">💡 Prices are AI-estimated from the image. You can still edit each price when adding to your bill.</p>`;
+
+    AppState.scanResults = scannedMenu;
+
+    // Display
+    const total = Object.values(scannedMenu).flat().length;
+    scanResult.innerHTML = '<h4 style="margin-bottom:6px;color:var(--success)">AI Scan Complete \u2014 ' + barName + '</h4>';
+    scanResult.innerHTML += '<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:14px;">' + total + ' items from ' + pageCount + ' page' + (pageCount>1?'s':'') + '. <span style="color:var(--success)">' + newCount + ' new</span>, <span style="color:var(--text-muted)">' + updateCount + ' price updates</span></p>';
+
+    const catLabels = {spirits:'Spirits',cocktails:'Cocktails',beers:'Beers',mixers:'Mixers',softDrinks:'Soft Drinks'};
+    Object.entries(catLabels).forEach(([key, label]) => {
+      const items = scannedMenu[key] || [];
+      if (!items.length) return;
+      scanResult.innerHTML += '<div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin:12px 0 6px;text-transform:uppercase;">' + label + ' (' + items.length + ')</div>';
+      items.forEach(item => {
+        const col = item.existing ? 'var(--text-muted)' : 'var(--success)';
+        const tag = item.existing ? '<span style="font-size:0.65rem;color:var(--text-muted);margin-left:6px;">UPDATE</span>' : '<span style="font-size:0.65rem;color:var(--success);margin-left:6px;">NEW</span>';
+        const priceText = item.price > 0 ? '\u20ba' + item.price : 'included';
+        scanResult.innerHTML += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:var(--dark3);border-radius:8px;margin-bottom:4px;font-size:0.85rem;border-left:3px solid ' + col + ';"><span>' + item.name + tag + '</span><span style="color:var(--primary);font-weight:600;">' + priceText + '</span></div>';
+      });
+    });
+    scanResult.innerHTML += '<p style="color:var(--text-muted);font-size:0.78rem;margin-top:14px;">NEW items added to menu. UPDATE items get price refreshed. Mixers show as included (no separate charge).</p>';
     document.getElementById('scan-actions').style.display = 'block';
-    showToast(`Menu scanned! ${Object.values(scannedMenu).flat().length} items from ${pageCount} page${pageCount > 1 ? 's' : ''} detected 📸`, 'success');
-  }, 2000 + (AppState.scanFiles.length * 800));
+    showToast('Scan done! ' + newCount + ' new + ' + updateCount + ' updates', 'success');
+  }, 1500 + (AppState.scanFiles.length * 500));
 }
 
 function saveScanResultsToBar() {

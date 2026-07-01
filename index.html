@@ -306,14 +306,15 @@
   <div class="modal-overlay" id="modal-mixer">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h3>Add a mixer? 🧊</h3>
-      <p><span id="mixer-spirit-name">Vodka</span> — edit price if needed:</p>
+      <h3>Choose a mixer 🧊</h3>
+      <p><span id="mixer-spirit-name">Vodka</span> — enter the total price (spirit + mixer included):</p>
       <input type="hidden" id="mixer-spirit-item-name">
       <input type="hidden" id="mixer-bar-id">
       <div class="amount-input-wrap" style="margin-bottom:14px;">
         <span class="currency-label">₺</span>
-        <input type="number" class="amount-input" id="mixer-spirit-price-input" style="font-size:1.2rem;">
+        <input type="number" class="amount-input" id="mixer-spirit-price-input" style="font-size:1.2rem;" placeholder="Total price">
       </div>
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">💡 Just enter ONE price for the whole drink — mixer is included in the price.</p>
       <div id="mixer-list"></div>
     </div>
   </div>
@@ -438,14 +439,12 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h3>📸 Scan a Menu</h3>
-      <p>Take up to <strong>6 photos</strong> of the bar's menu pages — AI will read all drinks, categories & prices and save them to this bar.</p>
-      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div style="font-size:2.5rem;">📷</div><p>Tap to add menu photos (up to 6 pages)</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
-      <input type="file" id="scan-input" accept="image/*" capture="environment" multiple onchange="handleScanUpload(this)">
+      <p>Add menu photos one by one — AI will read all drinks, prices & categories. Tap 📷 to add each page.</p>
+      <div class="upload-area" onclick="document.getElementById('scan-input').click()"><div style="font-size:2.5rem;">📷</div><p>Tap to add a menu photo</p><p id="scan-filename" style="color:var(--primary);font-size:0.8rem;"></p></div>
+      <input type="file" id="scan-input" accept="image/*" capture="environment" onchange="handleScanAddPhoto(this)">
       <div id="scan-thumbnails" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;"></div>
       <div id="scan-page-count" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;"></div>
-      <button class="modal-btn secondary" id="scan-add-more-btn" style="display:none;margin-bottom:10px;" onclick="document.getElementById('scan-input-extra').click()">📷 Add More Pages</button>
-      <input type="file" id="scan-input-extra" accept="image/*" capture="environment" multiple onchange="handleScanAddMore(this)" style="display:none;">
-      <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 Scan & Add All Prices</button>
+      <button class="modal-btn primary" id="scan-process-btn" style="display:none" onclick="processScanImage()">🤖 AI Scan All Pages</button>
       <div id="scan-result"></div>
       <div id="scan-actions" style="display:none;margin-top:12px;">
         <button class="modal-btn primary" onclick="saveScanResultsToBar()">💾 Save All to Bar Menu</button>
